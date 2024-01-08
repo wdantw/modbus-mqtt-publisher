@@ -20,10 +20,6 @@ namespace MudbusMqttPublisher
             {
                 app.UseWebAssemblyDebugging();
             }
-            else
-            {
-                app.UseExceptionHandler("/Error");
-            }
 
             app.UseBlazorFrameworkFiles();
             app.UseStaticFiles();
