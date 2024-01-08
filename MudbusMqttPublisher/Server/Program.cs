@@ -12,6 +12,7 @@ namespace MudbusMqttPublisher
 
             builder.Services.AddControllersWithViews();
             builder.Services.AddRazorPages();
+            builder.Services.AddSwaggerGen();
 
             var app = builder.Build();
 
@@ -30,6 +31,9 @@ namespace MudbusMqttPublisher
             app.MapRazorPages();
             app.MapControllers();
             app.MapFallbackToFile("index.html");
+
+            app.UseSwagger();
+            app.UseSwaggerUI();
 
             app.Run();
         }
