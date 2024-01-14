@@ -3,6 +3,6 @@
     public enum PortType
     {
         SerialModbus,
-        OneWaire
+        OneWire
     }
 }

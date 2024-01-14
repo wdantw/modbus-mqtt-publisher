@@ -12,6 +12,7 @@ namespace MudbusMqttPublisher.Server.Contracts.Settings
         public int DataBits { get; set; } = 8;
         public Parity Parity { get; set; } = Parity.None;
         public StopBits StopBits { get; set; } = StopBits.One;
+        public TimeSpan MinSleepTimeout { get; set;} = TimeSpan.FromMilliseconds(4.011);
 
 
         public DeviceSettings[] Devices { get; set; } = Array.Empty<DeviceSettings>();

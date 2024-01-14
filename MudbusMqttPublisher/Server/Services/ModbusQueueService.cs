@@ -205,6 +205,7 @@ namespace MudbusMqttPublisher.Server.Services
                 }
 
                 await PerfomReadRequest(master, readTaskRequest!);
+                await Task.Delay(settings.MinSleepTimeout, cancellationToken);
             }
         }
 
