@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.ResponseCompression;
+using MudbusMqttPublisher.Server.Services;
 
 namespace MudbusMqttPublisher
 {
@@ -13,6 +14,7 @@ namespace MudbusMqttPublisher
             builder.Services.AddControllersWithViews();
             builder.Services.AddRazorPages();
             builder.Services.AddSwaggerGen();
+            builder.Services.AddHostedService<MainWorker>();
 
             var app = builder.Build();
 
