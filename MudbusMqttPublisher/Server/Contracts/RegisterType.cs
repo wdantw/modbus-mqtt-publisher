@@ -2,10 +2,10 @@
 {
     public enum RegisterType
     {
-        Coil,
-        DiscreteInput,
-        HoldingRegister,
-        InputRegister
+        Coil, // Coil bit R/W
+        DiscreteInput, // Input Bit R-Only
+        HoldingRegister, // Holding U16 R/W
+        InputRegister // Input Register U16 R-Only
     }
 
     public static class RegisterTypeExtension

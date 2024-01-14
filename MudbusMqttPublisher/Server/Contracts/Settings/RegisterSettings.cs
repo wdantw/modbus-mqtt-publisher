@@ -11,6 +11,6 @@
         // тип регистра
         public RegisterType RegType { get; set; }
 
-        public TimeSpan ReadPeriod { get; set; }
+        public TimeSpan ReadPeriod { get; set; } = TimeSpan.MaxValue;
     }
 }
