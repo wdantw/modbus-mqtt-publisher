@@ -4,6 +4,7 @@ using System.IO.Ports;
 using NModbus.Serial;
 using MudbusMqttPublisher.Server.Common;
 using MudbusMqttPublisher.Server.Contracts;
+using System.Text;
 
 namespace MudbusMqttPublisher.Server.Services
 {
@@ -11,10 +12,16 @@ namespace MudbusMqttPublisher.Server.Services
     {
         private class LastReadInfo
         {
-            public byte SlaveAddress { get; set; }
-            public int RegisterNumber { get; set; }
-            public RegisterType RegType { get; set; }
+            public string Name { get; }
             public DateTime LastReadTime { get; set; }
+            public object LastReadValue { get; set; }
+
+            public LastReadInfo(string name, DateTime lastReadTime, object lastReadValue)
+            {
+                Name = name;
+                LastReadTime = lastReadTime;
+                LastReadValue = lastReadValue;
+            }
         }
 
         private readonly PortSettings settings;
@@ -35,26 +42,28 @@ namespace MudbusMqttPublisher.Server.Services
 
         private LastReadInfo? GetLastReadInfo(DeviceSettings dev, RegisterSettings reg)
         {
-            return lastReadInfos.FirstOrDefault(i => i.SlaveAddress == dev.SlaveAddress && i.RegisterNumber == reg.Number && i.RegType == reg.RegType);
+            return lastReadInfos.FirstOrDefault(i => i.Name == reg.Name);
         }
 
-        private void SetLastReadTime(DeviceSettings dev, RegisterSettings reg, DateTime lastReadTime)
+        private bool SetLastReadTime(DeviceSettings dev, RegisterSettings reg, DateTime lastReadTime, object value)
         {
             var info = GetLastReadInfo(dev, reg);
             if (info == null)
             {
-                info = new LastReadInfo()
-                {
-                    SlaveAddress = dev.SlaveAddress,
-                    RegisterNumber = reg.Number,
-                    RegType = reg.RegType,
-                    LastReadTime = lastReadTime
-                };
+                info = new LastReadInfo(
+                    reg.Name,
+                    lastReadTime,
+                    value
+                    );
                 lastReadInfos.Add(info);
+                return true;
             }
             else
             {
+                var changed = object.Equals(info.LastReadValue, value);
                 info.LastReadTime = lastReadTime;
+                info.LastReadValue = value;
+                return changed;
             }
         }
 
@@ -75,13 +84,16 @@ namespace MudbusMqttPublisher.Server.Services
                     if (c.Device.SlaveAddress != f.Device.SlaveAddress) return false;
                     if (c.Register.RegType != f.Register.RegType) return false;
                     if (c.NextReadTime > currTime) return false;
+
+                    var distace = Math.Max(c.Register.EndRegisterNumber, f.Register.EndRegisterNumber) - Math.Min(c.Register.Number, f.Register.Number);
+
                     if (f.Register.RegType.IsBitReg())
                     {
-                        if (Math.Abs(c.Register.Number - f.Register.Number) + 1 > f.Device.MaxReadBit) return false;
+                        if (distace > f.Device.MaxReadBit) return false;
                     }
                     else
                     {
-                        if (Math.Abs(c.Register.Number - f.Register.Number) + 1 > f.Device.MaxReadRegisters) return false;
+                        if (distace > f.Device.MaxReadRegisters) return false;
                     }
                     return true;
                 })
@@ -107,7 +119,7 @@ namespace MudbusMqttPublisher.Server.Services
                 .Where(r => r.Register.Number <= first.Register.Number)
                 .OrderByDescending(r => r.Register.Number)
                 .TakeWhileWithPrev((p, c) => {
-                    var holeSize = p.Register.Number - c.Register.Number - 1;
+                    var holeSize = p.Register.Number - c.Register.EndRegisterNumber;
                     if (p.Register.RegType.IsBitReg())
                     {
                         return holeSize <= first.Device.MaxBitHole;
@@ -123,7 +135,7 @@ namespace MudbusMqttPublisher.Server.Services
                 .Where(r => r.Register.Number >= first.Register.Number)
                 .OrderBy(r => r.Register.Number)
                 .TakeWhileWithPrev((p, c) => {
-                    var holeSize = c.Register.Number - p.Register.Number - 1;
+                    var holeSize = c.Register.Number - p.Register.EndRegisterNumber;
                     if (p.Register.RegType.IsBitReg())
                     {
                         return holeSize <= first.Device.MaxBitHole;
@@ -136,7 +148,7 @@ namespace MudbusMqttPublisher.Server.Services
                 .ToArray();
 
             var startNumber = first.Register.Number;
-            var endNumber = first.Register.Number;
+            var endNumber = first.Register.EndRegisterNumber;
             var indBefore = 1;
             var indAfter = 1;
             var maxRead = first.Register.RegType.IsBitReg() ? first.Device.MaxReadBit : first.Device.MaxReadRegisters;
@@ -145,8 +157,8 @@ namespace MudbusMqttPublisher.Server.Services
             {
                 var afterItem = indAfter < after.Length ? after[indAfter] : null;
                 var beforeItem = indBefore < before.Length ? before[indBefore] : null;
-                bool allowAfter = afterItem != null && (afterItem.Register.Number - startNumber + 1 <= maxRead);
-                bool allowBefore = beforeItem != null && (endNumber - beforeItem.Register.Number + 1 <= maxRead);
+                bool allowAfter = afterItem != null && (afterItem.Register.EndRegisterNumber - startNumber <= maxRead);
+                bool allowBefore = beforeItem != null && (endNumber - beforeItem.Register.Number <= maxRead);
 
                 if (!allowBefore && !allowAfter)
                     break;
@@ -166,7 +178,7 @@ namespace MudbusMqttPublisher.Server.Services
                 if (allowAfter)
                 {
                     indAfter++;
-                    endNumber = afterItem!.Register.Number;
+                    endNumber = afterItem!.Register.EndRegisterNumber;
                 }
                 else
                 {
@@ -175,7 +187,7 @@ namespace MudbusMqttPublisher.Server.Services
                 }
             }
 
-            return (null, new ReadTaskRequest(first.Device, first.Register.RegType, startNumber, endNumber - startNumber + 1));
+            return (null, new ReadTaskRequest(first.Device, first.Register.RegType, startNumber, endNumber - startNumber));
         }
 
         public async Task Run(CancellationToken cancellationToken)
@@ -215,39 +227,86 @@ namespace MudbusMqttPublisher.Server.Services
             var regCount = (ushort)readTask.RegisterCount;
             var readTime = DateTime.Now;
 
-            IEnumerable<object> readResult;
+            object[] readResult;
 
             switch (readTask.RegType)
             {
                 case RegisterType.Coil:
-                    readResult = (await modbus.ReadCoilsAsync(slaveAddress, startReg, regCount)).Cast<object>();
+                    readResult = (await modbus.ReadCoilsAsync(slaveAddress, startReg, regCount)).Cast<object>().ToArray();
                     break;
                 case RegisterType.DiscreteInput:
-                    readResult = (await modbus.ReadInputsAsync(slaveAddress, startReg, regCount)).Cast<object>();
+                    readResult = (await modbus.ReadInputsAsync(slaveAddress, startReg, regCount)).Cast<object>().ToArray();
                     break;
                 case RegisterType.HoldingRegister:
-                    readResult = (await modbus.ReadHoldingRegistersAsync(slaveAddress, startReg, regCount)).Cast<object>();
+                    readResult = (await modbus.ReadHoldingRegistersAsync(slaveAddress, startReg, regCount)).Cast<object>().ToArray();
                     break;
                 case RegisterType.InputRegister:
-                    readResult = (await modbus.ReadInputRegistersAsync(slaveAddress, startReg, regCount)).Cast<object>();
+                    readResult = (await modbus.ReadInputRegistersAsync(slaveAddress, startReg, regCount)).Cast<object>().ToArray();
                     break;
                 default:
                     throw new NotImplementedException();
             }
 
             var publishItems = new List<PublishItem>();
-            int currNumber = readTask.StartRegister;
-            foreach(var regValue in readResult)
+            int endRegister = readTask.StartRegister + readTask.RegisterCount;
+            for(int i = 0; i < readTask.RegisterCount; i++)
             {
-                var registers = readTask.Device.Registers.Where(r => r.Number == currNumber && r.RegType == readTask.RegType).ToArray();
-                publishItems.AddRange(registers.Select(r => new PublishItem(r.Name, regValue)));
+                int currNumber = readTask.StartRegister + i;
+                var registers = readTask.Device.Registers.Where(r => r.Number == currNumber && r.RegType == readTask.RegType && r.EndRegisterNumber <= endRegister);
                 foreach(var reg in registers)
                 {
-                    SetLastReadTime(readTask.Device, reg, readTime);
+                    object regValue = readResult[i];
+                    if (!reg.RegType.IsBitReg())
+                    {
+                        switch (reg.RegFormat)
+                        {
+                            case RegisterFormat.Uint16:
+                                regValue = (ushort)regValue;
+                                break;
+                            case RegisterFormat.Uint32:
+                                regValue = ToUint32((ushort)regValue, (ushort)readResult[i + 1]);
+                                break;
+                            case RegisterFormat.Uint64:
+                                regValue = ToUint64((ushort)regValue, (ushort)readResult[i + 1], (ushort)readResult[i + 2], (ushort)readResult[i + 3]);
+                                break;
+                            case RegisterFormat.Int16:
+                                {
+                                    var t = (ushort)regValue;
+                                    regValue = unchecked((short)t);
+                                }
+                                break;
+                            case RegisterFormat.Int32:
+                                {
+                                    var t = ToUint32((ushort)regValue, (ushort)readResult[i + 1]);
+                                    regValue = unchecked((int)t);
+                                }
+                                break;
+                            case RegisterFormat.Int64:
+                                {
+                                    var t = ToUint64((ushort)regValue, (ushort)readResult[i + 1], (ushort)readResult[i + 2], (ushort)readResult[i + 3]);
+                                    regValue = unchecked((long)t);
+                                }
+                                break;
+                            case RegisterFormat.String:
+                                regValue = Encoding.ASCII.GetString(
+                                    readResult.Skip(i).Take(reg.Length!.Value).Cast<ushort>().SelectMany(v => new byte[] { (byte)((v & 0xFF00) >> 8), (byte)(v & 0xFF) })
+                                    .ToArray()
+                                );
+                                break;
+                        }
+
+                    }
+
+                    if (SetLastReadTime(readTask.Device, reg, readTime, regValue))
+                        publishItems.Add(new PublishItem(reg.Name, regValue));
                 }
                 currNumber++;
             }
         }
+
+        static uint ToUint32(ushort v1, ushort v2) => ((uint)v1 << 16) + v2;
+
+        static ulong ToUint64(ushort v1, ushort v2, ushort v3, ushort v4) => ((ulong)ToUint32(v1, v2) << 32) + ToUint32(v3, v4);
 
     }
 }

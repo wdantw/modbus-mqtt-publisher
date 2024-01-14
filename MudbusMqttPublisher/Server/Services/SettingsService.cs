@@ -1,4 +1,5 @@
-﻿using MudbusMqttPublisher.Server.Contracts.Configs;
+﻿using MudbusMqttPublisher.Server.Common;
+using MudbusMqttPublisher.Server.Contracts.Configs;
 using MudbusMqttPublisher.Server.Contracts.Settings;
 
 namespace MudbusMqttPublisher.Server.Services
@@ -43,8 +44,10 @@ namespace MudbusMqttPublisher.Server.Services
                         devCfg.MaxReadBit ?? portCfg.MaxReadBit,
                         regs.ToArray()
                         ));
-
                 }
+
+                if (portCfg.Devices.SelectMany(d => d.Registers.Select(r => r.Name)).GroupBy(r => r).Any(r => r.Take(2).Count() > 1))
+                    throw new Exception("Имеются неуникальные имена регистров в рамках одного порта");
 
                 portsList.Add(new PortSettings(
                     portCfg.SerialName,
@@ -56,6 +59,9 @@ namespace MudbusMqttPublisher.Server.Services
                     devices.ToArray()
                     ));
             }
+
+            if (portsList.SelectMany(p => p.Devices).SelectMany(d => d.Registers.Select(r => r.Name)).GroupBy(r => r).Any(r => r.Take(2).Count() > 1))
+                throw new Exception("Имеются неуникальные имена регистров в рамках всей службы");
 
             return portsList.ToArray();
         }
