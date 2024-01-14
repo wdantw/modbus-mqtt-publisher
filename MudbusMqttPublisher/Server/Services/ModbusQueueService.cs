@@ -4,7 +4,6 @@ using System.IO.Ports;
 using NModbus.Serial;
 using MudbusMqttPublisher.Server.Common;
 using MudbusMqttPublisher.Server.Contracts;
-using Microsoft.AspNetCore.Mvc.Diagnostics;
 
 namespace MudbusMqttPublisher.Server.Services
 {

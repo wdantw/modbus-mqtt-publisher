@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.ResponseCompression;
 using MudbusMqttPublisher.Server.Services;
 
 namespace MudbusMqttPublisher

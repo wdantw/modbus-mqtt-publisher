@@ -1,6 +1,4 @@
-﻿using System.Runtime.InteropServices;
-
-namespace MudbusMqttPublisher.Server.Common
+﻿namespace MudbusMqttPublisher.Server.Common
 {
     public static class EnumerableExtension
     {

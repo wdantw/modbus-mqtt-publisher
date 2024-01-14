@@ -1,6 +1,4 @@
-﻿using MudbusMqttPublisher.Server.Contracts;
-
-namespace MudbusMqttPublisher.Server.Services
+﻿namespace MudbusMqttPublisher.Server.Services
 {
     public interface IRepositoryRegisterHandle : IDisposable
     {
