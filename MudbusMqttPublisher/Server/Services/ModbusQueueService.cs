@@ -11,7 +11,7 @@ namespace MudbusMqttPublisher.Server.Services
     {
         private class LastReadInfo
         {
-            public string DeviceName { get; set; } = string.Empty;
+            public byte SlaveAddress { get; set; }
             public int RegisterNumber { get; set; }
             public RegisterType RegType { get; set; }
             public DateTime LastReadTime { get; set; }
@@ -35,7 +35,7 @@ namespace MudbusMqttPublisher.Server.Services
 
         private LastReadInfo? GetLastReadInfo(DeviceSettings dev, RegisterSettings reg)
         {
-            return lastReadInfos.FirstOrDefault(i => i.DeviceName == dev.DeviceName && i.RegisterNumber == reg.Number && i.RegType == reg.RegType);
+            return lastReadInfos.FirstOrDefault(i => i.SlaveAddress == dev.SlaveAddress && i.RegisterNumber == reg.Number && i.RegType == reg.RegType);
         }
 
         private void SetLastReadTime(DeviceSettings dev, RegisterSettings reg, DateTime lastReadTime)
@@ -45,7 +45,7 @@ namespace MudbusMqttPublisher.Server.Services
             {
                 info = new LastReadInfo()
                 {
-                    DeviceName = dev.DeviceName,
+                    SlaveAddress = dev.SlaveAddress,
                     RegisterNumber = reg.Number,
                     RegType = reg.RegType,
                     LastReadTime = lastReadTime
@@ -72,16 +72,16 @@ namespace MudbusMqttPublisher.Server.Services
                 .OrderBy(r => r.NextReadTime)
                 .FirstAndFilterdByFirst((f, c) =>
                 {
-                    if (c.Device.DeviceName != f.Device.DeviceName) return false;
+                    if (c.Device.SlaveAddress != f.Device.SlaveAddress) return false;
                     if (c.Register.RegType != f.Register.RegType) return false;
                     if (c.NextReadTime > currTime) return false;
                     if (f.Register.RegType.IsBitReg())
                     {
-                        if (Math.Abs(c.Register.Number - f.Register.Number) + 1 > settings.MaxReadBit) return false;
+                        if (Math.Abs(c.Register.Number - f.Register.Number) + 1 > f.Device.MaxReadBit) return false;
                     }
                     else
                     {
-                        if (Math.Abs(c.Register.Number - f.Register.Number) + 1 > settings.MaxReadRegisters) return false;
+                        if (Math.Abs(c.Register.Number - f.Register.Number) + 1 > f.Device.MaxReadRegisters) return false;
                     }
                     return true;
                 })
@@ -110,11 +110,11 @@ namespace MudbusMqttPublisher.Server.Services
                     var holeSize = p.Register.Number - c.Register.Number - 1;
                     if (p.Register.RegType.IsBitReg())
                     {
-                        return holeSize <= settings.MaxBitHole;
+                        return holeSize <= first.Device.MaxBitHole;
                     }
                     else
                     {
-                        return holeSize <= settings.MaxRegHole;
+                        return holeSize <= first.Device.MaxRegHole;
                     }
                 })
                 .ToArray();
@@ -126,11 +126,11 @@ namespace MudbusMqttPublisher.Server.Services
                     var holeSize = c.Register.Number - p.Register.Number - 1;
                     if (p.Register.RegType.IsBitReg())
                     {
-                        return holeSize <= settings.MaxBitHole;
+                        return holeSize <= first.Device.MaxBitHole;
                     }
                     else
                     {
-                        return holeSize <= settings.MaxRegHole;
+                        return holeSize <= first.Device.MaxRegHole;
                     }
                 })
                 .ToArray();
@@ -139,7 +139,7 @@ namespace MudbusMqttPublisher.Server.Services
             var endNumber = first.Register.Number;
             var indBefore = 1;
             var indAfter = 1;
-            var maxRead = first.Register.RegType.IsBitReg() ? settings.MaxReadBit : settings.MaxReadRegisters;
+            var maxRead = first.Register.RegType.IsBitReg() ? first.Device.MaxReadBit : first.Device.MaxReadRegisters;
 
             while (true)
             {
@@ -210,7 +210,7 @@ namespace MudbusMqttPublisher.Server.Services
 
         private async Task PerfomReadRequest(IModbusMaster modbus, ReadTaskRequest readTask)
         {
-            var slaveAddress = byte.Parse(readTask.Device.DeviceName);
+            var slaveAddress = readTask.Device.SlaveAddress;
             var startReg = (ushort)readTask.StartRegister;
             var regCount = (ushort)readTask.RegisterCount;
             var readTime = DateTime.Now;

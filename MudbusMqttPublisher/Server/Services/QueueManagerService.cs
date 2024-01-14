@@ -55,12 +55,12 @@ namespace MudbusMqttPublisher.Server.Services
             }
             catch (OperationCanceledException)
             {
-                logger.LogInformation($"Очередь {settings.PortType}:{settings.PortName} остановлена");
+                logger.LogInformation($"Очередь {settings.PortName} остановлена");
                 return;
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Очередь {settings.PortType}:{settings.PortName} прекратила работу из за ошибки");
+                logger.LogError(ex, $"Очередь {settings.PortName} прекратила работу из за ошибки");
             }
         }
 

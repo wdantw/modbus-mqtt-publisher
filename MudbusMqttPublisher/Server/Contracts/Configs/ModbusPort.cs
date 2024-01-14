@@ -31,7 +31,7 @@ namespace MudbusMqttPublisher.Server.Contracts.Configs
     public class ModbusDevice
     {
         public byte? SlaveAddress { get; set; }
-        public string? Name { get; set; }
+        public string Name { get; set; } = string.Empty;
         public string? DeviceTypeName { get; set; }
         public int? MaxRegHole { get; set; }
         public int? MaxBitHole { get; set; }
