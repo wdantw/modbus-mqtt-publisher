@@ -15,6 +15,9 @@ namespace MudbusMqttPublisher
             builder.Services.AddSwaggerGen();
             builder.Services.AddHostedService<MainWorker>();
             builder.Services.AddTransient<ISettingsService, SettingsService>();
+            builder.Services.AddTransient<IQueueManagerService, QueueManagerService>();
+            builder.Services.AddTransient<IQueueFactoryService, QueueFactoryService>();
+            
 
             var app = builder.Build();
 

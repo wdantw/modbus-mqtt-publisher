@@ -25,14 +25,14 @@ namespace MudbusMqttPublisher.Server.Services
         }
 
         private readonly PortSettings settings;
-        private readonly ILogger logger;
+        private readonly ILogger<ModbusQueueService> logger;
         private readonly IQueueRepository queueRepository;
         private readonly IModbusFactory modbusFactory;
 
         private List<LastReadInfo> lastReadInfos = new List<LastReadInfo>();
 
 
-        public ModbusQueueService(PortSettings settings, ILogger logger, IQueueRepository queueRepository, IModbusFactory modbusFactory)
+        public ModbusQueueService(PortSettings settings, ILogger<ModbusQueueService> logger, IQueueRepository queueRepository, IModbusFactory modbusFactory)
         {
             this.settings = settings;
             this.logger = logger;

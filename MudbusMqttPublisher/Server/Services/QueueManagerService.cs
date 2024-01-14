@@ -6,13 +6,13 @@ namespace MudbusMqttPublisher.Server.Services
     public class QueueManagerService : IQueueManagerService
     {
         private readonly ISettingsService settingsService;
-        private readonly ILogger logger;
+        private readonly ILogger<QueueManagerService> logger;
         private readonly IQueueFactoryService queueFactoryService;
 
         private readonly object synchObject = new object();
         private CancellationTokenSource currentCancellationTokenSource;
 
-        public QueueManagerService(ISettingsService settingsService, ILogger logger, IQueueFactoryService queueFactoryService)
+        public QueueManagerService(ISettingsService settingsService, ILogger<QueueManagerService> logger, IQueueFactoryService queueFactoryService)
         {
             this.settingsService = settingsService;
             this.logger = logger;
