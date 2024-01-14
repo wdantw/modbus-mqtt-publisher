@@ -35,8 +35,8 @@ namespace MudbusMqttPublisher.Server.Services
                 var newReg = new RegisterSettings(name, number, regType.GetRegisterType(), regType.GetRegisterFormat(), config.ReadPeriod ?? TimeSpan.MaxValue, config.Length,
                     config.WbEvents ?? false, config.Scale);
 
-                if (!registers.All(r => newReg.EndRegisterNumber <= r.Number || newReg.Number >= r.EndRegisterNumber))
-                    throw new Exception($"Регистр с номером из диапазона {number}-{newReg.EndRegisterNumber-1} уже есть в этом устройстве");
+                if (!registers.All(r => r.RegType != newReg.RegType || (newReg.EndRegisterNumber <= r.Number || newReg.Number >= r.EndRegisterNumber)))
+                    throw new Exception($"Регистр {newReg.RegType} с номером из диапазона {number}-{newReg.EndRegisterNumber-1} уже есть в этом устройстве");
 
                 registers.Add(newReg);
             }
@@ -115,7 +115,7 @@ namespace MudbusMqttPublisher.Server.Services
                         {
                             for (int row = 0; row < config.RowCount.Value; row++)
                             {
-                                AddSingle(config, (ushort)(config.NumberStart.Value + col * formatSize + row * colLength), string.Format(config.Name, col, row), config.RegType.Value);
+                                AddSingle(config, (ushort)(config.NumberStart.Value + col * formatSize + row * colLength), string.Format(config.Name, col + 1, row + 1), config.RegType.Value);
                             }
                         }
                     }
@@ -128,7 +128,7 @@ namespace MudbusMqttPublisher.Server.Services
 
                         for (int ind = 0; ind < config.NumberCount.Value; ind++)
                         {
-                            AddSingle(config, (ushort)(config.NumberStart.Value + ind * formatSize), string.Format(config.Name, ind), config.RegType.Value);
+                            AddSingle(config, (ushort)(config.NumberStart.Value + ind * formatSize), string.Format(config.Name, ind + 1), config.RegType.Value);
                         }
                     }
                 }

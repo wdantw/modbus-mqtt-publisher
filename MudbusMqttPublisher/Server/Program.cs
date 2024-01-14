@@ -1,4 +1,5 @@
 using MudbusMqttPublisher.Server.Services;
+using NModbus;
 
 namespace MudbusMqttPublisher
 {
@@ -17,6 +18,8 @@ namespace MudbusMqttPublisher
             builder.Services.AddTransient<ISettingsService, SettingsService>();
             builder.Services.AddTransient<IQueueManagerService, QueueManagerService>();
             builder.Services.AddTransient<IQueueFactoryService, QueueFactoryService>();
+            builder.Services.AddTransient<IQueueRepository, QueueRepository>();
+            builder.Services.AddSingleton<IModbusFactory, ModbusFactory>();
             
 
             var app = builder.Build();
@@ -31,7 +34,6 @@ namespace MudbusMqttPublisher
             app.UseStaticFiles();
 
             app.UseRouting();
-
 
             app.MapRazorPages();
             app.MapControllers();

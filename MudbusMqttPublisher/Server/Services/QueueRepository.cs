@@ -3,9 +3,15 @@
 
     public class QueueRepository : IQueueRepository
     {
+        class Holder : IRepositoryRegisterHandle
+        {
+            public void Dispose()
+            {
+            }
+        }
         public IRepositoryRegisterHandle RegisterQueue(IPortQueue queue, string portName)
         {
-            throw new NotImplementedException();
+            return new Holder();
         }
 
     }

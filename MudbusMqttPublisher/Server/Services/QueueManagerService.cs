@@ -23,7 +23,7 @@ namespace MudbusMqttPublisher.Server.Services
 
         public async Task Run(CancellationToken stoppingToken)
         {
-            while (!stoppingToken.IsCancellationRequested)
+            //while (!stoppingToken.IsCancellationRequested)
             {
                 CancellationTokenSource combinedCts;
 
@@ -66,12 +66,12 @@ namespace MudbusMqttPublisher.Server.Services
 
         public void ReloadSettings()
         {
-            lock (synchObject)
-            {
-                var curr = currentCancellationTokenSource;
-                currentCancellationTokenSource = new CancellationTokenSource();
-                curr.Cancel();
-            }
+            //lock (synchObject)
+            //{
+            //    var curr = currentCancellationTokenSource;
+            //    currentCancellationTokenSource = new CancellationTokenSource();
+            //    curr.Cancel();
+            //}
         }
     }
 }

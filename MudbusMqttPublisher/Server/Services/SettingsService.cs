@@ -46,8 +46,9 @@ namespace MudbusMqttPublisher.Server.Services
                         ));
                 }
 
-                if (portCfg.Devices.SelectMany(d => d.Registers.Select(r => r.Name)).GroupBy(r => r).Any(r => r.Take(2).Count() > 1))
-                    throw new Exception("Имеются неуникальные имена регистров в рамках одного порта");
+                var nonUniqueReg = devices.SelectMany(d => d.Registers.Select(r => r.Name)).GroupBy(r => r).FirstOrDefault(r => r.Take(2).Count() > 1);
+                if (nonUniqueReg != null)
+                    throw new Exception($"Имеются неуникальные имена '{nonUniqueReg.Key}' регистров в рамках одного порта '{portCfg.SerialName}'");
 
                 portsList.Add(new PortSettings(
                     portCfg.SerialName,
