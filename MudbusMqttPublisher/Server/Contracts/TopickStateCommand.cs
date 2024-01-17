@@ -1,8 +1,9 @@
 ﻿namespace MudbusMqttPublisher.Server.Contracts
 {
-    public record PublishItem
+    public record TopickStateCommand
     (
         string TopickName,
-        object Value
+        object Value,
+        DateTime ReadTime
     );
 }

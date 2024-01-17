@@ -28,43 +28,29 @@ namespace MudbusMqttPublisher.Server.Services
         private readonly ILogger<ModbusQueueService> logger;
         private readonly IQueueRepository queueRepository;
         private readonly IModbusFactory modbusFactory;
+        private readonly ITopickStateService topickStateService;
 
-        private List<LastReadInfo> lastReadInfos = new List<LastReadInfo>();
-
-
-        public ModbusQueueService(PortSettings settings, ILogger<ModbusQueueService> logger, IQueueRepository queueRepository, IModbusFactory modbusFactory)
+        public ModbusQueueService(
+            PortSettings settings,
+            ILogger<ModbusQueueService> logger,
+            IQueueRepository queueRepository,
+            IModbusFactory modbusFactory,
+            ITopickStateService topickStateService)
         {
             this.settings = settings;
             this.logger = logger;
             this.queueRepository = queueRepository;
             this.modbusFactory = modbusFactory;
+            this.topickStateService = topickStateService;
         }
 
         private LastReadInfo? GetLastReadInfo(DeviceSettings dev, RegisterSettings reg)
         {
-            return lastReadInfos.FirstOrDefault(i => i.Name == reg.Name);
-        }
+            var state = topickStateService.GetTopickState(reg.Name);
+            if (state != null)
+                return new LastReadInfo(reg.Name, state.ReadTime, state.Value);
 
-        private bool SetLastReadTime(DeviceSettings dev, RegisterSettings reg, DateTime lastReadTime, object value)
-        {
-            var info = GetLastReadInfo(dev, reg);
-            if (info == null)
-            {
-                info = new LastReadInfo(
-                    reg.Name,
-                    lastReadTime,
-                    value
-                    );
-                lastReadInfos.Add(info);
-                return true;
-            }
-            else
-            {
-                var changed = object.Equals(info.LastReadValue, value);
-                info.LastReadTime = lastReadTime;
-                info.LastReadValue = value;
-                return changed;
-            }
+            return null;
         }
 
         private DateTime GetNextReadTime(DeviceSettings dev, RegisterSettings reg)
@@ -247,7 +233,7 @@ namespace MudbusMqttPublisher.Server.Services
                     throw new NotImplementedException();
             }
 
-            var publishItems = new List<PublishItem>();
+            var publishItems = new List<TopickStateCommand>();
             int endRegister = readTask.StartRegister + readTask.RegisterCount;
             for(int i = 0; i < readTask.RegisterCount; i++)
             {
@@ -297,8 +283,7 @@ namespace MudbusMqttPublisher.Server.Services
 
                     }
 
-                    if (SetLastReadTime(readTask.Device, reg, readTime, regValue))
-                        publishItems.Add(new PublishItem(reg.Name, regValue));
+                    topickStateService.UpdateTopickState(new TopickStateCommand(reg.Name, regValue, readTime));
                 }
                 currNumber++;
             }

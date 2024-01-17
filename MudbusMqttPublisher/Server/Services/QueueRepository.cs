@@ -9,6 +9,7 @@
             {
             }
         }
+
         public IRepositoryRegisterHandle RegisterQueue(IPortQueue queue, string portName)
         {
             return new Holder();
