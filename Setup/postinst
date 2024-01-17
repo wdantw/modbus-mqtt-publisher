@@ -1,0 +1,2 @@
+systemctl enable modbus-mqtt-publisher.service
+systemctl start modbus-mqtt-publisher.service

@@ -1,0 +1,25 @@
+basepath: ..
+outdir: ..\binary
+
+# main info
+
+package: modbus-mqtt-publisher
+version: 1.1
+architecture: armhf
+maintainer: Dant <kloundant@mail.ru>
+description: mqtt modbus gateway
+#depends: aspnetcore-runtime-5.0
+
+# scripts 
+#preinst:  Setup\preinst    text
+postinst: Setup\postinst   text
+#prerm:    Setup\prerm      text
+#postrm:   Setup\postrm     text
+
+# vars
+INSTALLDIR = opt/modbus-mqtt-publisher
+PUBLISHDIR = MudbusMqttPublisher\Server\bin\Release\net6.0\publish
+
+# files
+file: Setup\modbus-mqtt-publisher.service  etc/systemd/system/  text
+file: {PUBLISHDIR}\** {INSTALLDIR}/
