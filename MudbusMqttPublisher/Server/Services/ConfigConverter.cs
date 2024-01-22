@@ -33,7 +33,7 @@ namespace MudbusMqttPublisher.Server.Services
                     throw new Exception($"Регистр с именем {name} уже есть в этом устройстве");
 
                 var newReg = new RegisterSettings(name, number, regType.GetRegisterType(), regType.GetRegisterFormat(), config.ReadPeriod ?? TimeSpan.MaxValue, config.Length,
-                    config.WbEvents ?? false, config.Scale);
+                    config.WbEvents ?? false, config.Scale, config.Precision);
 
                 if (!registers.All(r => r.RegType != newReg.RegType || (newReg.EndRegisterNumber <= r.Number || newReg.Number >= r.EndRegisterNumber)))
                     throw new Exception($"Регистр {newReg.RegType} с номером из диапазона {number}-{newReg.EndRegisterNumber-1} уже есть в этом устройстве");
@@ -54,6 +54,9 @@ namespace MudbusMqttPublisher.Server.Services
 
                 if (config.Scale.HasValue)
                     register.UpdateScale(config.Scale.Value);
+
+                if (config.Precision.HasValue)
+                    register.UpdatePrecision(config.Precision.Value);
 
                 if (config.WbEvents.HasValue)
                     register.UpdateWbEvents(config.WbEvents.Value);

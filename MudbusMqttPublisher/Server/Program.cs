@@ -24,7 +24,8 @@ namespace MudbusMqttPublisher
             builder.Services.AddTransient<IQueueManagerService, QueueManagerService>();
             builder.Services.AddTransient<IQueueFactoryService, QueueFactoryService>();
             builder.Services.AddTransient<IQueueRepository, QueueRepository>();
-            builder.Services.AddSingleton<IModbusFactory, ModbusFactory>();
+            builder.Services.AddTransient<ModbusLogger>();
+            builder.Services.AddSingleton<IModbusFactory>(p => new ModbusFactory(null, true, p.GetRequiredService<ModbusLogger>()));
             builder.Services.AddSingleton<ITopicStateService, TopicStateService>();
             builder.Services.AddSingleton<MqttFactory>();
             builder.Services.AddSingleton<MqttPublisher>();

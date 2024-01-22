@@ -18,9 +18,10 @@
             Length = source.Length;
             WbEvents = source.WbEvents;
             Scale = source.Scale;
+            Precision = source.Precision;
         }
 
-        public RegisterSettings(string name, ushort number, RegisterType regType, RegisterFormat regFormat, TimeSpan readPeriod, ushort? length, bool wbEvents, double? scale)
+        public RegisterSettings(string name, ushort number, RegisterType regType, RegisterFormat regFormat, TimeSpan readPeriod, ushort? length, bool wbEvents, double? scale, int? precision)
         {
             Name = name;
             Number = number;
@@ -30,6 +31,7 @@
             Length = length;
             WbEvents = wbEvents;
             Scale = scale;
+            Precision = precision;
 
             if (regFormat == RegisterFormat.String && !length.HasValue)
                 throw new Exception("Не указана длина строки для строкового регистра");
@@ -42,6 +44,9 @@
 
             if (RegFormat == RegisterFormat.String && Scale.HasValue)
                 throw new Exception("Параметр Scale неприменим к строкам");
+
+            if (Precision.HasValue && !Scale.HasValue)
+                throw new Exception("Параметр Precision применим только когда указан Scale");
         }
 
         // имя топика mqtt
@@ -63,6 +68,8 @@
 
         public double? Scale { get; private set; }
 
+        public int? Precision { get; private set; }
+
         public int SizeInRegisters => (Length ?? 1) * RegFormat.SizeInRegisters();
 
         public ushort EndRegisterNumber => (ushort)(Number + (ushort)SizeInRegisters);
@@ -73,6 +80,14 @@
                 throw new Exception("Параметр Scale неприменим к строкам");
 
             Scale = scale;
+        }
+
+        public void UpdatePrecision(int precision)
+        {
+            if (!Scale.HasValue)
+                throw new Exception("Параметр Precision применим только когда указан Scale");
+
+            Precision = precision;
         }
 
         public void UpdateWbEvents(bool wbEvents)

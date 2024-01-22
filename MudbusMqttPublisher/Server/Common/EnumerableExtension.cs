@@ -65,6 +65,7 @@
                         yield break;
                     }
                     prevItem = item;
+                    yield return item;
                 }
             }
         }

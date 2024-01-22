@@ -49,6 +49,7 @@
 
         public ushort? Length { get; set; }
         public double? Scale { get; set; }
+        public int? Precision { get; set; }
 
         public ushort? Number { get; set; }
         public ushort? NumberStart { get; set; }

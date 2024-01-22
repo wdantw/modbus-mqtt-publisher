@@ -288,6 +288,13 @@ namespace MudbusMqttPublisher.Server.Services
                         }
 
                     }
+                    if (reg.Scale != null)
+                    {
+                        regValue = Convert.ToDouble(regValue) * reg.Scale.Value;
+                        if (reg.Precision.HasValue)
+                            regValue = Math.Round(Convert.ToDouble(regValue), reg.Precision.Value);
+                    }
+
                     logger.LogDebug($"Для регистра {reg.Name} получены данные {regValue}");
                     if (topickStateService.UpdateTopicState(new TopickStateCommand(reg.Name, regValue, readTime)))
                     {
