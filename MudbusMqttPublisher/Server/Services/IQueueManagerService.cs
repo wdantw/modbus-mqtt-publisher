@@ -3,6 +3,5 @@
     public interface IQueueManagerService
     {
         void ReloadSettings();
-        Task Run(CancellationToken stoppingToken);
     }
 }

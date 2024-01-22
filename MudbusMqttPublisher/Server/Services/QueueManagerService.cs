@@ -1,28 +1,50 @@
 ﻿
+using Microsoft.Extensions.Hosting;
 using MudbusMqttPublisher.Server.Contracts.Settings;
 
 namespace MudbusMqttPublisher.Server.Services
 {
-    public class QueueManagerService : IQueueManagerService
+    public class QueueManagerService : BackgroundService, IQueueManagerService
     {
         private readonly ISettingsService settingsService;
         private readonly ILogger<QueueManagerService> logger;
         private readonly IQueueFactoryService queueFactoryService;
+        private readonly IHost host;
 
         private readonly object synchObject = new object();
         private CancellationTokenSource currentCancellationTokenSource;
 
-        public QueueManagerService(ISettingsService settingsService, ILogger<QueueManagerService> logger, IQueueFactoryService queueFactoryService)
+        public QueueManagerService(ISettingsService settingsService, ILogger<QueueManagerService> logger, IQueueFactoryService queueFactoryService, IHost host)
         {
             this.settingsService = settingsService;
             this.logger = logger;
             this.queueFactoryService = queueFactoryService;
+            this.host = host;
 
             currentCancellationTokenSource = new CancellationTokenSource();
         }
 
+        protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+        {
+            try
+            {
+                await Run(stoppingToken);
+            }
+            catch (OperationCanceledException)
+            {
+                logger.LogInformation("Работа службы отменена");
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Работа службы остановлена из за ошибки");
+            }
+
+            await host.StopAsync();
+        }
+
         public async Task Run(CancellationToken stoppingToken)
         {
+            // TODO: цикл исключен,  так как в случае ошибки происходит непрерывный перезапуск
             //while (!stoppingToken.IsCancellationRequested)
             {
                 CancellationTokenSource combinedCts;

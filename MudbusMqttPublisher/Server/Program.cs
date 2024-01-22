@@ -1,6 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using MQTTnet;
-using MudbusMqttPublisher.Server.Contracts;
+using MudbusMqttPublisher.Server.Contracts.Configs;
 using MudbusMqttPublisher.Server.Services;
 using NModbus;
 
@@ -21,18 +21,20 @@ namespace MudbusMqttPublisher
             builder.Services.Configure<MqttOptions>(builder.Configuration.GetSection(nameof(MqttOptions)));
 
             builder.Services.AddTransient<ISettingsService, SettingsService>();
-            builder.Services.AddTransient<IQueueManagerService, QueueManagerService>();
             builder.Services.AddTransient<IQueueFactoryService, QueueFactoryService>();
             builder.Services.AddTransient<IQueueRepository, QueueRepository>();
             builder.Services.AddTransient<ModbusLogger>();
             builder.Services.AddSingleton<IModbusFactory>(p => new ModbusFactory(null, true, p.GetRequiredService<ModbusLogger>()));
             builder.Services.AddSingleton<ITopicStateService, TopicStateService>();
             builder.Services.AddSingleton<MqttFactory>();
-            builder.Services.AddSingleton<MqttPublisher>();
-            builder.Services.AddTransient<IMqttPublisher>(p => p.GetRequiredService<MqttPublisher>());
 
+            builder.Services.AddSingleton<MqttPublisher>();
+            builder.Services.AddSingleton<IMqttPublisher>(p => p.GetRequiredService<MqttPublisher>());
             builder.Services.AddHostedService(p => p.GetRequiredService<MqttPublisher>());
-            builder.Services.AddHostedService<MainWorker>();
+
+            builder.Services.AddSingleton<QueueManagerService>();
+            builder.Services.AddSingleton<IQueueManagerService>(p => p.GetRequiredService<QueueManagerService>());
+            builder.Services.AddHostedService(p => p.GetRequiredService<QueueManagerService>());
 
             var app = builder.Build();
 

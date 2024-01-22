@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Options;
 using MQTTnet;
 using MudbusMqttPublisher.Server.Contracts;
+using MudbusMqttPublisher.Server.Contracts.Configs;
 using System.Collections.Concurrent;
 
 namespace MudbusMqttPublisher.Server.Services

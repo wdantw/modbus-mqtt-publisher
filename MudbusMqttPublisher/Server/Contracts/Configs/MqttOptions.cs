@@ -1,4 +1,4 @@
-﻿namespace MudbusMqttPublisher.Server.Contracts
+﻿namespace MudbusMqttPublisher.Server.Contracts.Configs
 {
     public class MqttOptions
     {

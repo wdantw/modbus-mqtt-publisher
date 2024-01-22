@@ -11,19 +11,13 @@ namespace MudbusMqttPublisher.Server.Services
 {
     public class ModbusQueueService : IQueueService
     {
-        private class LastReadInfo
-        {
-            public string Name { get; }
-            public DateTime LastReadTime { get; set; }
-            public object LastReadValue { get; set; }
-
-            public LastReadInfo(string name, DateTime lastReadTime, object lastReadValue)
-            {
-                Name = name;
-                LastReadTime = lastReadTime;
-                LastReadValue = lastReadValue;
-            }
-        }
+        public record ReadTaskRequest
+        (
+            DeviceSettings Device,
+            RegisterType RegType,
+            int StartRegister,
+            int RegisterCount
+        );
 
         private readonly PortSettings settings;
         private readonly ILogger<ModbusQueueService> logger;
@@ -48,19 +42,14 @@ namespace MudbusMqttPublisher.Server.Services
             this.mqttPublisher = mqttPublisher;
         }
 
-        private LastReadInfo? GetLastReadInfo(DeviceSettings dev, RegisterSettings reg)
+        private TopickStateDto? GetLastReadInfo(DeviceSettings dev, RegisterSettings reg)
         {
-            var state = topickStateService.GetTopicState(reg.Name);
-            if (state != null)
-                return new LastReadInfo(reg.Name, state.ReadTime, state.Value);
-
-            return null;
+            return topickStateService.GetTopicState(reg.Name);
         }
 
         private DateTime GetNextReadTime(DeviceSettings dev, RegisterSettings reg)
         {
-            return (GetLastReadInfo(dev, reg)?.LastReadTime ?? DateTime.MinValue)
-                + reg.ReadPeriod;
+            return (GetLastReadInfo(dev, reg)?.ReadTime ?? DateTime.MinValue) + reg.ReadPeriod;
         }
 
         private (DateTime? waitForTime, ReadTaskRequest? readTaskRequest) GetReadTask()
