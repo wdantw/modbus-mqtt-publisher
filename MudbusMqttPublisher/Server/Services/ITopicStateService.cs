@@ -4,7 +4,7 @@ namespace MudbusMqttPublisher.Server.Services
 {
     public interface ITopicStateService
     {
-        TopickStateCommand? GetTopicState(string name);
-        bool UpdateTopicState(TopickStateCommand command);
+        TopickStateDto? GetTopicState(string name);
+        bool UpdateTopicState(TopickStateDto command);
     }
 }

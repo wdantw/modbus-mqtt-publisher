@@ -239,7 +239,7 @@ namespace MudbusMqttPublisher.Server.Services
                     throw new NotImplementedException();
             }
 
-            var publishItems = new List<TopickStateCommand>();
+            var publishItems = new List<TopickStateDto>();
             int endRegister = readTask.StartRegister + readTask.RegisterCount;
             for(int i = 0; i < readTask.RegisterCount; i++)
             {
@@ -296,7 +296,7 @@ namespace MudbusMqttPublisher.Server.Services
                     }
 
                     logger.LogDebug($"Для регистра {reg.Name} получены данные {regValue}");
-                    if (topickStateService.UpdateTopicState(new TopickStateCommand(reg.Name, regValue, readTime)))
+                    if (topickStateService.UpdateTopicState(new TopickStateDto(reg.Name, regValue, readTime)))
                     {
                         logger.LogDebug($"Для регистра {reg.Name} данные добавлены в очередь отправки");
                         mqttPublisher.PublishTopic(reg.Name);

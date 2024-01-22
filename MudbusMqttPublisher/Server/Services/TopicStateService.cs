@@ -22,7 +22,7 @@ namespace MudbusMqttPublisher.Server.Services
                 LastUpdateTime = time;
             }
 
-            public bool UpdateCommand(TopickStateCommand updateCommand, DateTime readTime)
+            public bool UpdateCommand(TopickStateDto updateCommand, DateTime readTime)
             {
                 if (updateCommand.TopickName != Name)
                     throw new Exception("Имя топика не совпадает с переданной командой");
@@ -45,7 +45,7 @@ namespace MudbusMqttPublisher.Server.Services
             this.options = options;
         }
 
-        public bool UpdateTopicState(TopickStateCommand command)
+        public bool UpdateTopicState(TopickStateDto command)
         {
             bool isNew = false;
             var state = topickStates.GetOrAdd(command.TopickName, _ => { isNew = true; return new TopickState(command.TopickName, command.Value, command.ReadTime);  });
@@ -53,12 +53,12 @@ namespace MudbusMqttPublisher.Server.Services
             return state.UpdateCommand(command, command.ReadTime);
         }
 
-        public TopickStateCommand? GetTopicState(string name)
+        public TopickStateDto? GetTopicState(string name)
         {
             if (!topickStates.TryGetValue(name, out var state))
                 return null;
 
-            return new TopickStateCommand(name, state.Value, state.LastReadTime);
+            return new TopickStateDto(name, state.Value, state.LastReadTime);
         }
 
     }

@@ -1,6 +1,6 @@
 ﻿namespace MudbusMqttPublisher.Server.Contracts
 {
-    public record TopickStateCommand
+    public record TopickStateDto
     (
         string TopickName,
         object Value,
