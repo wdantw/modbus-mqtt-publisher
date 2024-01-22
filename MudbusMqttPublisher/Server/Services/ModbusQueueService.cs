@@ -5,6 +5,7 @@ using NModbus.Serial;
 using MudbusMqttPublisher.Server.Common;
 using MudbusMqttPublisher.Server.Contracts;
 using System.Text;
+using Microsoft.Extensions.Logging;
 
 namespace MudbusMqttPublisher.Server.Services
 {
@@ -208,6 +209,7 @@ namespace MudbusMqttPublisher.Server.Services
 
         private async Task PerfomReadRequest(IModbusMaster modbus, ReadTaskRequest readTask)
         {
+            logger.LogDebug("Запрошено чтение информации из Modbus");
             var slaveAddress = readTask.Device.SlaveAddress;
             var startReg = (ushort)readTask.StartRegister;
             var regCount = (ushort)readTask.RegisterCount;
@@ -282,7 +284,7 @@ namespace MudbusMqttPublisher.Server.Services
                         }
 
                     }
-
+                    logger.LogDebug($"Для регистра {reg.Name} получены данные {regValue}");
                     topickStateService.UpdateTopickState(new TopickStateCommand(reg.Name, regValue, readTime));
                 }
                 currNumber++;
