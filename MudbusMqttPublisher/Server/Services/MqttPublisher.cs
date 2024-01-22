@@ -1,0 +1,75 @@
+﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using MQTTnet;
+using MudbusMqttPublisher.Server.Contracts;
+using System.Collections.Concurrent;
+
+namespace MudbusMqttPublisher.Server.Services
+{
+    public class MqttPublisher : BackgroundService, IMqttPublisher
+    {
+        private readonly IOptions<MqttOptions> options;
+        private ConcurrentQueue<string> pendingTopics = new();
+        private volatile TaskCompletionSource hasQueueTsc = new();
+        private readonly ITopicStateService topicStateService;
+        private readonly ILogger<MqttPublisher> logger;
+
+        public MqttPublisher(IOptions<MqttOptions> options, ITopicStateService topicStateService, ILogger<MqttPublisher> logger)
+        {
+            this.options = options;
+            this.topicStateService = topicStateService;
+            this.logger = logger;
+        }
+
+        public void PublishTopic(string topicName)
+        {
+            pendingTopics.Enqueue(topicName);
+            hasQueueTsc.TrySetResult();
+        }
+
+        protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+        {
+            while (!stoppingToken.IsCancellationRequested)
+            {
+                await SendPending(stoppingToken);
+
+                hasQueueTsc = new TaskCompletionSource();
+
+                if (!pendingTopics.IsEmpty)
+                    continue;
+
+                await hasQueueTsc.Task;
+            }
+        }
+
+        public async Task SendPending(CancellationToken cancellationToken)
+        {
+            var mqttFactory = new MqttFactory();
+            using var client = mqttFactory.CreateMqttClient();
+            var connectOptions = mqttFactory.CreateClientOptionsBuilder()
+                .WithTcpServer(options.Value.TcpAddress)
+                .Build();
+
+            await client.ConnectAsync(connectOptions);
+
+            while (pendingTopics.TryDequeue(out var dequeuedName))
+            {
+                var state = topicStateService.GetTopicState(dequeuedName);
+                if (state == null)
+                    continue;
+
+                logger.LogInformation($"Публикация информации для топика {dequeuedName}");
+
+
+                var applicationMessage = new MqttApplicationMessageBuilder()
+                    .WithTopic(dequeuedName)
+                    .WithPayload(state.Value.ToString())
+                    .WithRetainFlag(true)
+                    .Build();
+
+                await client.PublishAsync(applicationMessage, cancellationToken);
+            }
+        }
+
+    }
+}

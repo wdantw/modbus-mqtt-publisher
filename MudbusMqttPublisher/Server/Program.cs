@@ -17,18 +17,21 @@ namespace MudbusMqttPublisher
             builder.Services.AddControllersWithViews();
             builder.Services.AddRazorPages();
             builder.Services.AddSwaggerGen();
-            builder.Services.AddHostedService<MainWorker>();
+
+            builder.Services.Configure<MqttOptions>(builder.Configuration.GetSection(nameof(MqttOptions)));
+
             builder.Services.AddTransient<ISettingsService, SettingsService>();
             builder.Services.AddTransient<IQueueManagerService, QueueManagerService>();
             builder.Services.AddTransient<IQueueFactoryService, QueueFactoryService>();
             builder.Services.AddTransient<IQueueRepository, QueueRepository>();
             builder.Services.AddSingleton<IModbusFactory, ModbusFactory>();
-            builder.Services.Configure<MqttOptions>(nameof(MqttOptions), builder.Configuration);
+            builder.Services.AddSingleton<ITopicStateService, TopicStateService>();
             builder.Services.AddSingleton<MqttFactory>();
-            builder.Services.AddSingleton<TopickStateService>();
-            builder.Services.AddTransient<ITopickStateService>(p => p.GetRequiredService<TopickStateService>());
-            builder.Services.AddHostedService(p => p.GetRequiredService<TopickStateService>());
+            builder.Services.AddSingleton<MqttPublisher>();
+            builder.Services.AddTransient<IMqttPublisher>(p => p.GetRequiredService<MqttPublisher>());
 
+            builder.Services.AddHostedService(p => p.GetRequiredService<MqttPublisher>());
+            builder.Services.AddHostedService<MainWorker>();
 
             var app = builder.Build();
 

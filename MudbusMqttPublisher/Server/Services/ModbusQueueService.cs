@@ -29,25 +29,28 @@ namespace MudbusMqttPublisher.Server.Services
         private readonly ILogger<ModbusQueueService> logger;
         private readonly IQueueRepository queueRepository;
         private readonly IModbusFactory modbusFactory;
-        private readonly ITopickStateService topickStateService;
+        private readonly ITopicStateService topickStateService;
+        private readonly IMqttPublisher mqttPublisher;
 
         public ModbusQueueService(
             PortSettings settings,
             ILogger<ModbusQueueService> logger,
             IQueueRepository queueRepository,
             IModbusFactory modbusFactory,
-            ITopickStateService topickStateService)
+            ITopicStateService topickStateService,
+            IMqttPublisher mqttPublisher)
         {
             this.settings = settings;
             this.logger = logger;
             this.queueRepository = queueRepository;
             this.modbusFactory = modbusFactory;
             this.topickStateService = topickStateService;
+            this.mqttPublisher = mqttPublisher;
         }
 
         private LastReadInfo? GetLastReadInfo(DeviceSettings dev, RegisterSettings reg)
         {
-            var state = topickStateService.GetTopickState(reg.Name);
+            var state = topickStateService.GetTopicState(reg.Name);
             if (state != null)
                 return new LastReadInfo(reg.Name, state.ReadTime, state.Value);
 
@@ -56,7 +59,7 @@ namespace MudbusMqttPublisher.Server.Services
 
         private DateTime GetNextReadTime(DeviceSettings dev, RegisterSettings reg)
         {
-            return GetLastReadInfo(dev, reg)?.LastReadTime ?? DateTime.MinValue
+            return (GetLastReadInfo(dev, reg)?.LastReadTime ?? DateTime.MinValue)
                 + reg.ReadPeriod;
         }
 
@@ -198,6 +201,7 @@ namespace MudbusMqttPublisher.Server.Services
                 if (waitForTime.HasValue)
                 {
                     var delay = waitForTime.Value - DateTime.Now;
+                    logger.LogDebug($"Ожидание следующего чтения {delay}");
                     await Task.Delay(delay, cancellationToken);
                     continue;
                 }
@@ -285,7 +289,11 @@ namespace MudbusMqttPublisher.Server.Services
 
                     }
                     logger.LogDebug($"Для регистра {reg.Name} получены данные {regValue}");
-                    topickStateService.UpdateTopickState(new TopickStateCommand(reg.Name, regValue, readTime));
+                    if (topickStateService.UpdateTopicState(new TopickStateCommand(reg.Name, regValue, readTime)))
+                    {
+                        logger.LogDebug($"Для регистра {reg.Name} данные добавлены в очередь отправки");
+                        mqttPublisher.PublishTopic(reg.Name);
+                    }
                 }
                 currNumber++;
             }
