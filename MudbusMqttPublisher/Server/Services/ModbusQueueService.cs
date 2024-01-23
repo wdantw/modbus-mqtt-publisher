@@ -241,7 +241,7 @@ namespace MudbusMqttPublisher.Server.Services
                     {
                         switch (reg.RegFormat)
                         {
-                            case RegisterFormat.Uint16:
+                            case RegisterFormat.Default:
                                 regValue = (ushort)regValue;
                                 break;
                             case RegisterFormat.Uint32:

@@ -1,12 +1,13 @@
 ﻿
 using Microsoft.Extensions.Hosting;
 using MudbusMqttPublisher.Server.Contracts.Settings;
+using MudbusMqttPublisher.Server.Services.Configuration;
 
 namespace MudbusMqttPublisher.Server.Services
 {
     public class QueueManagerService : BackgroundService, IQueueManagerService
     {
-        private readonly ISettingsService settingsService;
+        private readonly IConfigurationResolver settingsService;
         private readonly ILogger<QueueManagerService> logger;
         private readonly IQueueFactoryService queueFactoryService;
         private readonly IHost host;
@@ -14,7 +15,7 @@ namespace MudbusMqttPublisher.Server.Services
         private readonly object synchObject = new object();
         private CancellationTokenSource currentCancellationTokenSource;
 
-        public QueueManagerService(ISettingsService settingsService, ILogger<QueueManagerService> logger, IQueueFactoryService queueFactoryService, IHost host)
+        public QueueManagerService(IConfigurationResolver settingsService, ILogger<QueueManagerService> logger, IQueueFactoryService queueFactoryService, IHost host)
         {
             this.settingsService = settingsService;
             this.logger = logger;
@@ -54,7 +55,7 @@ namespace MudbusMqttPublisher.Server.Services
                     combinedCts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken, currentCancellationTokenSource.Token);
                 }
 
-                var tasks = settingsService.GetSettings()
+                var tasks = settingsService.ResolveConfigs()
                     .Select(s => RunSingle(s, combinedCts.Token))
                     .Where(t => t != null)
                     .ToArray();

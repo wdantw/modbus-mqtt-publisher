@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using MQTTnet;
 using MudbusMqttPublisher.Server.Contracts.Configs;
 using MudbusMqttPublisher.Server.Services;
+using MudbusMqttPublisher.Server.Services.Configuration;
 using NModbus;
 
 namespace MudbusMqttPublisher
@@ -18,12 +19,14 @@ namespace MudbusMqttPublisher
             builder.Services.AddRazorPages();
             builder.Services.AddSwaggerGen();
 
-            builder.Services.Configure<MqttOptions>(builder.Configuration.GetSection(nameof(MqttOptions)));
+            builder.Services.Configure<MqttOptions>(builder.Configuration.GetSection(MqttOptions.SectionName));
+            builder.Services.Configure<ModbusDeviceTypes>(builder.Configuration.GetSection(ModbusDeviceTypes.SectionName));
+            builder.Services.Configure<ModbusPorts>(builder.Configuration.GetSection(ModbusPorts.SectionName));
 
-            builder.Services.AddTransient<ISettingsService, SettingsService>();
             builder.Services.AddTransient<IQueueFactoryService, QueueFactoryService>();
             builder.Services.AddTransient<IQueueRepository, QueueRepository>();
             builder.Services.AddTransient<ModbusLogger>();
+            builder.Services.AddTransient<IConfigurationResolver, ConfigurationResolver>();
             builder.Services.AddSingleton<IModbusFactory>(p => new ModbusFactory(null, true, p.GetRequiredService<ModbusLogger>()));
             builder.Services.AddSingleton<ITopicStateService, TopicStateService>();
             builder.Services.AddSingleton<MqttFactory>();

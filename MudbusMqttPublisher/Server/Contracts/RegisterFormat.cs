@@ -2,7 +2,7 @@
 {
     public enum RegisterFormat
     {
-        Uint16,
+        Default, // Uint16 или Bool в зависимости от типа регистра
         Uint32,
         Uint64,
         Int16,
@@ -13,11 +13,11 @@
 
     public static class RegisterFormatExtension
     {
-        public static ushort SizeInRegisters(this RegisterFormat format)
+        public static byte SizeInRegisters(this RegisterFormat format)
         {
             switch (format)
             {
-                case RegisterFormat.Uint16:
+                case RegisterFormat.Default:
                 case RegisterFormat.Int16:
                 case RegisterFormat.String:
                     return 1;
@@ -30,6 +30,11 @@
                 default:
                     throw new ArgumentOutOfRangeException(nameof(format));
             }
+        }
+
+        public static bool FormatHasLength(this RegisterFormat format)
+        {
+            return format == RegisterFormat.String;
         }
     }
 }

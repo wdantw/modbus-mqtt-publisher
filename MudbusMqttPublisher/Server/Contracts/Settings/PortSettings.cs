@@ -15,14 +15,13 @@ namespace MudbusMqttPublisher.Server.Contracts.Settings
             Devices = devices;
         }
 
-        public string PortName { get; set; } = string.Empty;
+        public string PortName { get; }
 
-        public int BaudRate { get; set; } = 9600;
-        public int DataBits { get; set; } = 8;
-        public Parity Parity { get; set; } = Parity.None;
-        public StopBits StopBits { get; set; } = StopBits.One;
-        public TimeSpan MinSleepTimeout { get; set;} = TimeSpan.FromMilliseconds(4.011);
-
+        public int BaudRate { get; }
+        public int DataBits { get; }
+        public Parity Parity { get; }
+        public StopBits StopBits { get; }
+        public TimeSpan MinSleepTimeout { get; }
 
         public DeviceSettings[] Devices { get; set; } = Array.Empty<DeviceSettings>();
     }
