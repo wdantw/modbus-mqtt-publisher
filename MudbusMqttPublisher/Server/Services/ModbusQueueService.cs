@@ -396,7 +396,7 @@ namespace MudbusMqttPublisher.Server.Services
                         if (data.Length != dataLength)
                             throw new Exception("Ошибка в преобразовании данных для передачи в устройство");
 
-                        if (groupArr[startInd].Register.RegType != RegisterType.InputRegister)
+                        if (groupArr[startInd].Register.RegType != RegisterType.HoldingRegister)
                         {
                             logger.LogError($"Нельзя писать в регистр {groupArr[startInd].Register.RegType}");
                         }
@@ -404,6 +404,7 @@ namespace MudbusMqttPublisher.Server.Services
                         await modbus.WriteMultipleRegistersAsync(groupArr[0].Device.SlaveAddress, groupArr[startInd].Register.Number, data);
                     }
 
+                    startInd = endInd;
                 }
             }
         }

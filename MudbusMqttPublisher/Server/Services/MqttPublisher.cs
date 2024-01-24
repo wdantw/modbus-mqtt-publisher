@@ -41,7 +41,7 @@ namespace MudbusMqttPublisher.Server.Services
                 .WithTcpServer(options.Value.TcpAddress)
                 .Build();
 
-            await client.ConnectAsync(connectOptions);
+            await client.ConnectAsync(connectOptions, cancellationToken);
 
             while (pendingTopics.TryDequeue(out var dequeuedName))
             {

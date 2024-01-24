@@ -1,4 +1,5 @@
-﻿using MudbusMqttPublisher.Server.Contracts.Configs;
+﻿using MudbusMqttPublisher.Server.Common;
+using MudbusMqttPublisher.Server.Contracts.Configs;
 using MudbusMqttPublisher.Server.Contracts.Settings;
 using System.Runtime.CompilerServices;
 
@@ -6,7 +7,7 @@ namespace MudbusMqttPublisher.Server.Services.Configuration
 {
     public static class Mappers
     {
-        const string TopicPathDelimeter = "/";
+        
 
         private static T AssertNotNull<T>(this T? instance, [CallerArgumentExpression(nameof(instance))] string varName = "value")
             where T : class
@@ -26,22 +27,6 @@ namespace MudbusMqttPublisher.Server.Services.Configuration
             return instance.Value;
         }
 
-        private static string CombineTopicPath(string? basePath, string tailPath)
-        {
-            if (tailPath.StartsWith(TopicPathDelimeter))
-                return tailPath[1..];
-
-            if (basePath == null)
-                return tailPath;
-
-            if (basePath.EndsWith(TopicPathDelimeter))
-                basePath = basePath[..^1];
-
-            if (basePath.StartsWith(TopicPathDelimeter))
-                basePath = basePath[1..];
-
-            return basePath + TopicPathDelimeter + tailPath;
-        }
 
         public static PortSettings MapToSettings(this ModbusPortComplete port)
         {
@@ -62,7 +47,7 @@ namespace MudbusMqttPublisher.Server.Services.Configuration
         public static DeviceSettings MapToSettings(this ModbusDeviceComplete device, string? baseName, string baseSerialName, int baudRate)
         {
             var slaveAddress = device.SlaveAddress.AssertNotNull();
-            var defaultDeviceName = TopicPathDelimeter + CombineTopicPath(baseName ?? baseSerialName, $"Dev{slaveAddress}");
+            var defaultDeviceName = MqttPath.TopicPathDelimeter + MqttPath.CombineTopicPath(baseName ?? baseSerialName, $"Dev{slaveAddress}");
             var devNmae = device.Name ?? defaultDeviceName;
 
             return new DeviceSettings(
@@ -72,14 +57,14 @@ namespace MudbusMqttPublisher.Server.Services.Configuration
                 maxReadRegisters: device.MaxReadRegisters ?? DefaultSettings.MaxReadRegisters,
                 maxReadBit: device.MaxReadBit ?? DefaultSettings.MaxReadBit,
                 minSleepTimeout: device.MinSleepTimeout ?? DefaultSettings.MinSleepTimeout(baudRate),
-                registers: device.Registers.Select(r => MapToSettings(r, CombineTopicPath(baseName, devNmae))).ToArray()
+                registers: device.Registers.Select(r => MapToSettings(r, MqttPath.CombineTopicPath(baseName, devNmae))).ToArray()
                 );
         }
 
         public static RegisterSettings MapToSettings(this ModbusRegisterCompleted register, string baseName)
         {
             return new RegisterSettings(
-                name: CombineTopicPath(baseName, register.Name.AssertNotNull()),
+                name: MqttPath.CombineTopicPath(baseName, register.Name.AssertNotNull()),
                 number: register.Number.AssertNotNull(),
                 regType: register.RegType.AssertNotNull().GetRegisterType(),
                 regFormat: register.RegType.AssertNotNull().GetRegisterFormat(),

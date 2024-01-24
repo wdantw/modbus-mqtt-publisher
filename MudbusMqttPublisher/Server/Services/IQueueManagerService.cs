@@ -2,6 +2,7 @@
 {
     public interface IQueueManagerService
     {
+        string? GetTopicSerialName(string topicName);
         void ReloadSettings();
     }
 }

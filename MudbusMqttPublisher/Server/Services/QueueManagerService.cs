@@ -12,6 +12,7 @@ namespace MudbusMqttPublisher.Server.Services
 
         private readonly object synchObject = new object();
         private CancellationTokenSource currentCancellationTokenSource;
+        private PortSettings[] settings = null;
 
         public QueueManagerService(IConfigurationResolver settingsService, ILogger<QueueManagerService> logger, IQueueFactoryService queueFactoryService, IHost host)
         {
@@ -41,6 +42,26 @@ namespace MudbusMqttPublisher.Server.Services
             await host.StopAsync();
         }
 
+        public string? GetTopicSerialName(string topicName)
+        {
+            if (settings == null)
+                return null;
+
+            foreach(var port in settings)
+            {
+                foreach(var  dev in port.Devices)
+                {
+                    foreach(var reg in dev.Registers)
+                    {
+                        if (reg.Name == topicName)
+                            return port.SerialName;
+                    }
+                }
+            }
+
+            return null;
+        }
+
         public async Task Run(CancellationToken stoppingToken)
         {
             // TODO: цикл исключен,  так как в случае ошибки происходит непрерывный перезапуск
@@ -53,7 +74,8 @@ namespace MudbusMqttPublisher.Server.Services
                     combinedCts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken, currentCancellationTokenSource.Token);
                 }
 
-                var tasks = settingsService.ResolveConfigs()
+                settings = settingsService.ResolveConfigs();
+                var tasks = settings
                     .Select(s => RunSingle(s, combinedCts.Token))
                     .Where(t => t != null)
                     .ToArray();

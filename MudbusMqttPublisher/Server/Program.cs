@@ -37,7 +37,8 @@ namespace MudbusMqttPublisher
             builder.Services.AddSingleton<QueueManagerService>();
             builder.Services.AddSingleton<IQueueManagerService>(p => p.GetRequiredService<QueueManagerService>());
             builder.Services.AddHostedService(p => p.GetRequiredService<QueueManagerService>());
-
+            builder.Services.AddHostedService<MqttConsumer>();
+            
             var app = builder.Build();
 
             // Configure the HTTP request pipeline.
