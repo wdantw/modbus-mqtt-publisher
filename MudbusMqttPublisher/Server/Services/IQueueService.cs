@@ -1,6 +1,6 @@
 ﻿namespace MudbusMqttPublisher.Server.Services
 {
-    public interface IQueueService : IPortQueue
+    public interface IQueueService
     {
         Task Run(CancellationToken cancellationToken);
     }

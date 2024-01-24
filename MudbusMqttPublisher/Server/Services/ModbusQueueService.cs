@@ -4,11 +4,8 @@ using System.IO.Ports;
 using NModbus.Serial;
 using MudbusMqttPublisher.Server.Common;
 using MudbusMqttPublisher.Server.Contracts;
-using System.Text;
-using Microsoft.Extensions.Logging;
-using System.IO.Pipelines;
-using System.Linq;
 using System.Collections.Generic;
+using Microsoft.Extensions.Logging;
 
 namespace MudbusMqttPublisher.Server.Services
 {
@@ -24,27 +21,27 @@ namespace MudbusMqttPublisher.Server.Services
 
         private readonly PortSettings settings;
         private readonly ILogger<ModbusQueueService> logger;
-        private readonly IQueueRepository queueRepository;
         private readonly IModbusFactory modbusFactory;
         private readonly ITopicStateService topickStateService;
         private readonly IMqttPublisher mqttPublisher;
+        private readonly IWriteQueueService writeQueueService;
 
         Dictionary<byte, DateTime> deviceLastReadTimes = new();
 
         public ModbusQueueService(
             PortSettings settings,
             ILogger<ModbusQueueService> logger,
-            IQueueRepository queueRepository,
             IModbusFactory modbusFactory,
             ITopicStateService topickStateService,
-            IMqttPublisher mqttPublisher)
+            IMqttPublisher mqttPublisher,
+            IWriteQueueService writeQueueService)
         {
             this.settings = settings;
             this.logger = logger;
-            this.queueRepository = queueRepository;
             this.modbusFactory = modbusFactory;
             this.topickStateService = topickStateService;
             this.mqttPublisher = mqttPublisher;
+            this.writeQueueService = writeQueueService;
         }
 
         private DateTime GetNextReadTime(DeviceSettings dev, RegisterSettings reg, DateTime curTime)
@@ -74,6 +71,20 @@ namespace MudbusMqttPublisher.Server.Services
             }
 
             return result;
+        }
+
+        private bool TestRegHole(RegisterSettings regLow, RegisterSettings regHi, DeviceSettings device)
+        {
+            var holeSize = regLow.Number - regHi.EndRegisterNumber;
+            
+            if (regLow.RegType.IsBitReg())
+            {
+                return holeSize <= device.MaxBitHole;
+            }
+            else
+            {
+                return holeSize <= device.MaxRegHole;
+            }
         }
 
         private (DateTime? waitForTime, ReadTaskRequest? readTaskRequest) GetReadTask()
@@ -121,33 +132,13 @@ namespace MudbusMqttPublisher.Server.Services
             var before = pending
                 .Where(r => r.Register.Number <= first.Register.Number)
                 .OrderByDescending(r => r.Register.Number)
-                .TakeWhileWithPrev((p, c) => {
-                    var holeSize = p.Register.Number - c.Register.EndRegisterNumber;
-                    if (p.Register.RegType.IsBitReg())
-                    {
-                        return holeSize <= first.Device.MaxBitHole;
-                    }
-                    else
-                    {
-                        return holeSize <= first.Device.MaxRegHole;
-                    }
-                })
+                .TakeWhileWithPrev((p, c) => TestRegHole(p.Register, c.Register, first.Device))
                 .ToArray();
 
             var after = pending
                 .Where(r => r.Register.Number >= first.Register.Number)
                 .OrderBy(r => r.Register.Number)
-                .TakeWhileWithPrev((p, c) => {
-                    var holeSize = c.Register.Number - p.Register.EndRegisterNumber;
-                    if (p.Register.RegType.IsBitReg())
-                    {
-                        return holeSize <= first.Device.MaxBitHole;
-                    }
-                    else
-                    {
-                        return holeSize <= first.Device.MaxRegHole;
-                    }
-                })
+                .TakeWhileWithPrev((p, c) => TestRegHole(c.Register, p.Register, first.Device))
                 .ToArray();
 
             var startNumber = first.Register.Number;
@@ -195,7 +186,7 @@ namespace MudbusMqttPublisher.Server.Services
 
         public async Task Run(CancellationToken cancellationToken)
         {
-            using var port = new SerialPort(settings.PortName);
+            using var port = new SerialPort(settings.SerialName);
 
             port.BaudRate = settings.BaudRate;
             port.DataBits = settings.DataBits;
@@ -207,10 +198,17 @@ namespace MudbusMqttPublisher.Server.Services
 
             using var master = modbusFactory.CreateRtuMaster(port);
 
-            using var regHandle = queueRepository.RegisterQueue(this, settings.PortName);
-
             while (!cancellationToken.IsCancellationRequested)
             {
+                var writeQueries = writeQueueService.GetQueries(settings.SerialName);
+                if (writeQueries.Length > 0)
+                {
+                    await PerfomWriteRequest(master, writeQueries);
+                    writeQueueService.AcceptDequeued(settings.SerialName);
+                    await Task.Delay(settings.MinSleepTimeout, cancellationToken);
+                    continue;
+                }
+
                 (var waitForTime, var readTaskRequest) = GetReadTask();
                 
                 if (waitForTime.HasValue)
@@ -220,7 +218,8 @@ namespace MudbusMqttPublisher.Server.Services
                     // чтоб не ломалось во время отладки или лагов
                     if (delay < TimeSpan.Zero) continue;
                     logger.LogDebug($"Ожидание следующего чтения {delay}");
-                    await Task.Delay(delay, cancellationToken);
+
+                    await Task.WhenAny(writeQueueService.WaitForItems(settings.SerialName, cancellationToken), Task.Delay(delay));
                     continue;
                 }
 
@@ -305,7 +304,7 @@ namespace MudbusMqttPublisher.Server.Services
 
                     foreach (var reg in registers)
                     {
-                        var regValue = TypeConverter.Convert(readResult.Skip(i).Take(reg.SizeInRegisters).ToArray(), reg.RegFormat, reg.SizeInRegisters);
+                        var regValue = TypeConverter.ConvertFromDevice(readResult.Skip(i).Take(reg.SizeInRegisters).ToArray(), reg.RegFormat, reg.SizeInRegisters);
 
                         if (reg.Scale != null)
                         {
@@ -329,5 +328,84 @@ namespace MudbusMqttPublisher.Server.Services
             }
         }
 
+        private async Task PerfomWriteRequest(IModbusMaster modbus, WriteQuery[] queries)
+        {
+            (bool Found, DeviceSettings? Device, RegisterSettings? Register, object? Value) FindRegister(WriteQuery writeQuery)
+            {
+                foreach (var dev in settings.Devices)
+                {
+                    foreach (var reg in dev.Registers)
+                    {
+                        if (reg.Name == writeQuery.TopicName)
+                            return (true, dev, reg, writeQuery.Value);
+                    }
+                }
+                return (false, null, null, null);
+            }
+
+            var grouped = queries
+                .Select(FindRegister)
+                .Where(r => r.Found)
+                .Select(r => new { Device = r.Device!, Register = r.Register!, Value = r.Value! })
+                .GroupBy(r => new { addr = r.Device.SlaveAddress, regType = r.Register.RegType })
+                ;
+
+            foreach(var group in grouped)
+            {
+                var groupArr = group.OrderBy(r => r.Register.Number).ToArray();
+                var startInd = 0;
+                var maxBatchSize = groupArr[0].Register.RegType.IsBitReg() ? groupArr[0].Device.MaxReadBit : groupArr[0].Device.MaxReadRegisters;
+
+                while (startInd < groupArr.Length)
+                {
+                    var endInd = startInd + 1;
+                    while (
+                        endInd < groupArr.Length &&
+                        groupArr[endInd - 1].Register.EndRegisterNumber == groupArr[endInd].Register.Number &&
+                        groupArr[endInd].Register.EndRegisterNumber - groupArr[startInd].Register.Number <= maxBatchSize
+                        )
+                    {
+                        endInd++;
+                    }
+
+                    if (groupArr[0].Register.RegType.IsBitReg())
+                    {
+                        var data = Enumerable.Range(startInd, endInd - startInd)
+                            .Select(i => Convert.ToBoolean(groupArr[i].Value))
+                            .ToArray();
+
+                        var dataLength = groupArr[endInd - 1].Register.EndRegisterNumber - groupArr[startInd].Register.Number;
+                        if (data.Length != dataLength)
+                            throw new Exception("Ошибка в преобразовании данных для передачи в устройство");
+
+                        if (groupArr[startInd].Register.RegType != RegisterType.Coil)
+                        {
+                            logger.LogError($"Нельзя писать в регистр {groupArr[startInd].Register.RegType}");
+                        }
+
+                        await modbus.WriteMultipleCoilsAsync(groupArr[0].Device.SlaveAddress, groupArr[startInd].Register.Number, data);
+                    }
+                    else
+                    {
+                        var data = Enumerable.Range(startInd, endInd - startInd)
+                            .Select(i => groupArr[i])
+                            .SelectMany(r => TypeConverter.ConvertToDevice(r.Value, r.Register.RegFormat, r.Register.Length))
+                            .ToArray();
+
+                        var dataLength = groupArr[endInd - 1].Register.EndRegisterNumber - groupArr[startInd].Register.Number;
+                        if (data.Length != dataLength)
+                            throw new Exception("Ошибка в преобразовании данных для передачи в устройство");
+
+                        if (groupArr[startInd].Register.RegType != RegisterType.InputRegister)
+                        {
+                            logger.LogError($"Нельзя писать в регистр {groupArr[startInd].Register.RegType}");
+                        }
+
+                        await modbus.WriteMultipleRegistersAsync(groupArr[0].Device.SlaveAddress, groupArr[startInd].Register.Number, data);
+                    }
+
+                }
+            }
+        }
     }
 }

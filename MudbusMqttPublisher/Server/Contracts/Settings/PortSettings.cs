@@ -13,7 +13,7 @@ namespace MudbusMqttPublisher.Server.Contracts.Settings
             TimeSpan minSleepTimeout,
             DeviceSettings[] devices)
         {
-            PortName = portName;
+            SerialName = portName;
             BaudRate = baudRate;
             DataBits = dataBits;
             Parity = parity;
@@ -22,7 +22,7 @@ namespace MudbusMqttPublisher.Server.Contracts.Settings
             Devices = devices;
         }
 
-        public string PortName { get; }
+        public string SerialName { get; }
 
         public int BaudRate { get; }
         public int DataBits { get; }

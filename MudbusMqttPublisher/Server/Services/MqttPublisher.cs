@@ -1,16 +1,14 @@
-﻿using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
+﻿using Microsoft.Extensions.Options;
 using MQTTnet;
+using MudbusMqttPublisher.Server.Common;
 using MudbusMqttPublisher.Server.Contracts.Configs;
-using System.Collections.Concurrent;
 
 namespace MudbusMqttPublisher.Server.Services
 {
     public class MqttPublisher : BackgroundService, IMqttPublisher
     {
         private readonly IOptions<MqttOptions> options;
-        private ConcurrentQueue<string> pendingTopics = new();
-        private volatile TaskCompletionSource hasQueueTsc = new();
+        private AwaiteableQueue<string> pendingTopics = new();
         private readonly ITopicStateService topicStateService;
         private readonly ILogger<MqttPublisher> logger;
 
@@ -24,7 +22,6 @@ namespace MudbusMqttPublisher.Server.Services
         public void PublishTopic(string topicName)
         {
             pendingTopics.Enqueue(topicName);
-            hasQueueTsc.TrySetResult();
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -32,13 +29,7 @@ namespace MudbusMqttPublisher.Server.Services
             while (!stoppingToken.IsCancellationRequested)
             {
                 await SendPending(stoppingToken);
-
-                hasQueueTsc = new TaskCompletionSource();
-
-                if (!pendingTopics.IsEmpty)
-                    continue;
-
-                await hasQueueTsc.Task;
+                await pendingTopics.WaitForItems(stoppingToken);
             }
         }
 

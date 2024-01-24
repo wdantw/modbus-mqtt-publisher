@@ -5,7 +5,13 @@ namespace MudbusMqttPublisher.Server.Services
 {
     public static class TypeConverter
     {
-        public static object Convert(ushort[] data, RegisterFormat format, int? length)
+        static void AssertLength(ReadOnlySpan<ushort> arr, int length)
+        {
+            if (arr.Length < length)
+                throw new ArgumentOutOfRangeException("Переданных данных не достаточно для преобразования значения");
+        }
+
+        public static object ConvertFromDevice(ushort[] data, RegisterFormat format, int? length)
         {
             switch (format)
             {
@@ -43,10 +49,53 @@ namespace MudbusMqttPublisher.Server.Services
             }
         }
 
-        static void AssertLength(ReadOnlySpan<ushort> arr, int length)
+        public static ushort[] ConvertToDevice(object value, RegisterFormat format, int? length)
         {
-            if (arr.Length < length)
-                throw new ArgumentOutOfRangeException("Переданных данных не достаточно для преобразования значения");
+            switch (format)
+            {
+                case RegisterFormat.Default:
+                    return new ushort[] { Convert.ToUInt16(value) };
+
+                case RegisterFormat.Uint32:
+                    return Convert.ToUInt32(value).SplitUint().ToArray();
+
+                case RegisterFormat.Uint64:
+                    return Convert.ToUInt64(value).SplitUlong().SelectMany(SplitUint).ToArray();
+
+                case RegisterFormat.Int16:
+                    return new ushort[] { Convert.ToInt16(value).MakeUnsigned() };
+
+                case RegisterFormat.Int32:
+                    return Convert.ToInt32(value).MakeUnsigned().SplitUint().ToArray();
+
+                case RegisterFormat.Int64:
+                    return Convert.ToInt64(value).MakeUnsigned().SplitUlong().SelectMany(SplitUint).ToArray();
+
+                case RegisterFormat.String:
+                    {
+                        if (!length.HasValue)
+                            throw new ArgumentNullException(nameof(length));
+                        var result = new ushort[length.Value];
+                        var str = Convert.ToString(value);
+                        if (str != null)
+                        {
+                            var bytes = Encoding.ASCII.GetBytes(str);
+                            for(var i = 0; i < bytes.Length; i += 2)
+                            {
+                                var b1 = bytes[0];
+                                byte b2 = 0;
+                                if (i + 1 < bytes.Length)
+                                    b2 = bytes[i + 1];
+
+                                result[i % 2] = (ushort)((b1 << 8) + b2);
+                            }
+                        }
+                        return result;
+                    }
+
+                default:
+                    throw new ArgumentException("Неизвестное значение формата регистра");
+            }
         }
 
         static uint ToUint32(ushort v1, ushort v2) => ((uint)v1 << 16) + v2;
@@ -54,11 +103,27 @@ namespace MudbusMqttPublisher.Server.Services
         static short MakeSigned(ushort src) => unchecked((short)src);
         static int MakeSigned(uint src) => unchecked((short)src);
         static long MakeSigned(ulong src) => unchecked((short)src);
+        static ushort MakeUnsigned(this short src) => unchecked((ushort)src);
+        static uint MakeUnsigned(this int src) => unchecked((ushort)src);
+        static ulong MakeUnsigned(this long src) => unchecked((ushort)src);
 
         static IEnumerable<byte> SplitUshort(this ushort value)
         {
             yield return (byte)((value & 0xFF00) >> 8);
             yield return (byte)(value & 0xFF);
         }
+
+        static IEnumerable<ushort> SplitUint(this uint value)
+        {
+            yield return (ushort)((value & 0xFFFF0000) >> 16);
+            yield return (ushort)(value & 0xFFFF);
+        }
+
+        static IEnumerable<uint> SplitUlong(this ulong value)
+        {
+            yield return (uint)((value & 0xFFFFFFFF00000000) >> 32);
+            yield return (uint)(value & 0xFFFFFFFF);
+        }
+
     }
 }

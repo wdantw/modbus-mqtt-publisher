@@ -1,6 +1,4 @@
-﻿
-using Microsoft.Extensions.Hosting;
-using MudbusMqttPublisher.Server.Contracts.Settings;
+﻿using MudbusMqttPublisher.Server.Contracts.Settings;
 using MudbusMqttPublisher.Server.Services.Configuration;
 
 namespace MudbusMqttPublisher.Server.Services
@@ -78,12 +76,12 @@ namespace MudbusMqttPublisher.Server.Services
             }
             catch (OperationCanceledException)
             {
-                logger.LogInformation($"Очередь {settings.PortName} остановлена");
+                logger.LogInformation($"Очередь {settings.SerialName} остановлена");
                 return;
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Очередь {settings.PortName} прекратила работу из за ошибки");
+                logger.LogError(ex, $"Очередь {settings.SerialName} прекратила работу из за ошибки");
             }
         }
 

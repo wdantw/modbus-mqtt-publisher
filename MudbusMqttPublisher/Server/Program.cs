@@ -1,4 +1,3 @@
-using Microsoft.Extensions.DependencyInjection;
 using MQTTnet;
 using MudbusMqttPublisher.Server.Contracts.Configs;
 using MudbusMqttPublisher.Server.Services;
@@ -24,12 +23,12 @@ namespace MudbusMqttPublisher
             builder.Services.Configure<ModbusPorts>(builder.Configuration.GetSection(ModbusPorts.SectionName));
 
             builder.Services.AddTransient<IQueueFactoryService, QueueFactoryService>();
-            builder.Services.AddTransient<IQueueRepository, QueueRepository>();
             builder.Services.AddTransient<ModbusLogger>();
             builder.Services.AddTransient<IConfigurationResolver, ConfigurationResolver>();
             builder.Services.AddSingleton<IModbusFactory>(p => new ModbusFactory(null, true, p.GetRequiredService<ModbusLogger>()));
             builder.Services.AddSingleton<ITopicStateService, TopicStateService>();
             builder.Services.AddSingleton<MqttFactory>();
+            builder.Services.AddSingleton<IWriteQueueService, WriteQueueService>();
 
             builder.Services.AddSingleton<MqttPublisher>();
             builder.Services.AddSingleton<IMqttPublisher>(p => p.GetRequiredService<MqttPublisher>());

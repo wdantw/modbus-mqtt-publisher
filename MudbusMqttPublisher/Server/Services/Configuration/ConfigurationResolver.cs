@@ -1,8 +1,6 @@
-﻿using Microsoft.AspNetCore.Routing.Matching;
-using Microsoft.Extensions.Options;
+﻿using Microsoft.Extensions.Options;
 using MudbusMqttPublisher.Server.Contracts.Configs;
 using MudbusMqttPublisher.Server.Contracts.Settings;
-using System.Linq;
 
 namespace MudbusMqttPublisher.Server.Services.Configuration
 {

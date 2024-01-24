@@ -1,7 +1,5 @@
-﻿using Microsoft.Win32;
-using MudbusMqttPublisher.Server.Contracts.Configs;
+﻿using MudbusMqttPublisher.Server.Contracts.Configs;
 using MudbusMqttPublisher.Server.Contracts.Settings;
-using System.Data.SqlTypes;
 using System.Runtime.CompilerServices;
 
 namespace MudbusMqttPublisher.Server.Services.Configuration
