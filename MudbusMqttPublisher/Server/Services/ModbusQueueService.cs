@@ -6,6 +6,9 @@ using MudbusMqttPublisher.Server.Common;
 using MudbusMqttPublisher.Server.Contracts;
 using System.Text;
 using Microsoft.Extensions.Logging;
+using System.IO.Pipelines;
+using System.Linq;
+using System.Collections.Generic;
 
 namespace MudbusMqttPublisher.Server.Services
 {
@@ -26,6 +29,8 @@ namespace MudbusMqttPublisher.Server.Services
         private readonly ITopicStateService topickStateService;
         private readonly IMqttPublisher mqttPublisher;
 
+        Dictionary<byte, DateTime> deviceLastReadTimes = new();
+
         public ModbusQueueService(
             PortSettings settings,
             ILogger<ModbusQueueService> logger,
@@ -42,14 +47,18 @@ namespace MudbusMqttPublisher.Server.Services
             this.mqttPublisher = mqttPublisher;
         }
 
-        private TopickStateDto? GetLastReadInfo(DeviceSettings dev, RegisterSettings reg)
-        {
-            return topickStateService.GetTopicState(reg.Name);
-        }
-
         private DateTime GetNextReadTime(DeviceSettings dev, RegisterSettings reg)
         {
-            return (GetLastReadInfo(dev, reg)?.ReadTime ?? DateTime.MinValue) + reg.ReadPeriod;
+            var result = (topickStateService.GetTopicState(reg.Name)?.ReadTime ?? DateTime.MinValue) + reg.ReadPeriod;
+
+            if (deviceLastReadTimes.TryGetValue(dev.SlaveAddress, out var deviceLastReadTime))
+            {
+                var minDeviceNextReadTime = deviceLastReadTime + dev.MinSleepTimeout;
+                if (result < minDeviceNextReadTime)
+                    result = minDeviceNextReadTime;
+            }
+
+            return result;
         }
 
         private (DateTime? waitForTime, ReadTaskRequest? readTaskRequest) GetReadTask()
@@ -177,6 +186,8 @@ namespace MudbusMqttPublisher.Server.Services
             port.DataBits = settings.DataBits;
             port.Parity = settings.Parity;
             port.StopBits = settings.StopBits;
+            //port.DtrEnable = true;
+            //port.RtsEnable = true;
             port.Open();
 
             using var master = modbusFactory.CreateRtuMaster(port);
@@ -208,96 +219,97 @@ namespace MudbusMqttPublisher.Server.Services
             var regCount = (ushort)readTask.RegisterCount;
             var readTime = DateTime.Now;
 
-            object[] readResult;
-
-            switch (readTask.RegType)
+            if (readTask.RegType.IsBitReg())
             {
-                case RegisterType.Coil:
-                    readResult = (await modbus.ReadCoilsAsync(slaveAddress, startReg, regCount)).Cast<object>().ToArray();
-                    break;
-                case RegisterType.DiscreteInput:
-                    readResult = (await modbus.ReadInputsAsync(slaveAddress, startReg, regCount)).Cast<object>().ToArray();
-                    break;
-                case RegisterType.HoldingRegister:
-                    readResult = (await modbus.ReadHoldingRegistersAsync(slaveAddress, startReg, regCount)).Cast<object>().ToArray();
-                    break;
-                case RegisterType.InputRegister:
-                    readResult = (await modbus.ReadInputRegistersAsync(slaveAddress, startReg, regCount)).Cast<object>().ToArray();
-                    break;
-                default:
-                    throw new NotImplementedException();
-            }
+                bool[] readResult;
 
-            var publishItems = new List<TopickStateDto>();
-            int endRegister = readTask.StartRegister + readTask.RegisterCount;
-            for(int i = 0; i < readTask.RegisterCount; i++)
-            {
-                int currNumber = readTask.StartRegister + i;
-                var registers = readTask.Device.Registers.Where(r => r.Number == currNumber && r.RegType == readTask.RegType && r.EndRegisterNumber <= endRegister);
-                foreach(var reg in registers)
+                switch (readTask.RegType)
                 {
-                    object regValue = readResult[i];
-                    if (!reg.RegType.IsBitReg())
+                    case RegisterType.Coil:
+                        readResult = await modbus.ReadCoilsAsync(slaveAddress, startReg, regCount);
+                        break;
+                    case RegisterType.DiscreteInput:
+                        readResult = await modbus.ReadInputsAsync(slaveAddress, startReg, regCount);
+                        break;
+                    default:
+                        throw new NotImplementedException();
+                }
+
+                deviceLastReadTimes[slaveAddress] = DateTime.Now;
+
+                for (int i = 0; i < readTask.RegisterCount; i++)
+                {
+                    int currNumber = readTask.StartRegister + i;
+                    var registers = readTask.Device.Registers
+                        .Where(r => r.Number == currNumber &&
+                                    r.RegType == readTask.RegType &&
+                                    r.RegFormat == RegisterFormat.Default);
+
+                    var regValue = readResult[i];
+
+                    foreach (var reg in registers)
                     {
-                        switch (reg.RegFormat)
+                        logger.LogDebug($"Для регистра {reg.Name} получены данные {regValue}");
+                        if (topickStateService.UpdateTopicState(new TopickStateDto(reg.Name, regValue, readTime)))
                         {
-                            case RegisterFormat.Default:
-                                regValue = (ushort)regValue;
-                                break;
-                            case RegisterFormat.Uint32:
-                                regValue = ToUint32((ushort)regValue, (ushort)readResult[i + 1]);
-                                break;
-                            case RegisterFormat.Uint64:
-                                regValue = ToUint64((ushort)regValue, (ushort)readResult[i + 1], (ushort)readResult[i + 2], (ushort)readResult[i + 3]);
-                                break;
-                            case RegisterFormat.Int16:
-                                {
-                                    var t = (ushort)regValue;
-                                    regValue = unchecked((short)t);
-                                }
-                                break;
-                            case RegisterFormat.Int32:
-                                {
-                                    var t = ToUint32((ushort)regValue, (ushort)readResult[i + 1]);
-                                    regValue = unchecked((int)t);
-                                }
-                                break;
-                            case RegisterFormat.Int64:
-                                {
-                                    var t = ToUint64((ushort)regValue, (ushort)readResult[i + 1], (ushort)readResult[i + 2], (ushort)readResult[i + 3]);
-                                    regValue = unchecked((long)t);
-                                }
-                                break;
-                            case RegisterFormat.String:
-                                regValue = Encoding.ASCII.GetString(
-                                    readResult.Skip(i).Take(reg.Length!.Value).Cast<ushort>().SelectMany(v => new byte[] { (byte)((v & 0xFF00) >> 8), (byte)(v & 0xFF) })
-                                    .ToArray()
-                                );
-                                break;
+                            logger.LogDebug($"Для регистра {reg.Name} данные добавлены в очередь отправки");
+                            mqttPublisher.PublishTopic(reg.Name);
                         }
-
-                    }
-                    if (reg.Scale != null)
-                    {
-                        regValue = Convert.ToDouble(regValue) * reg.Scale.Value;
-                        if (reg.Precision.HasValue)
-                            regValue = Math.Round(Convert.ToDouble(regValue), reg.Precision.Value);
-                    }
-
-                    logger.LogDebug($"Для регистра {reg.Name} получены данные {regValue}");
-                    if (topickStateService.UpdateTopicState(new TopickStateDto(reg.Name, regValue, readTime)))
-                    {
-                        logger.LogDebug($"Для регистра {reg.Name} данные добавлены в очередь отправки");
-                        mqttPublisher.PublishTopic(reg.Name);
                     }
                 }
-                currNumber++;
+            }
+            else
+            {
+                ushort[] readResult;
+                switch (readTask.RegType)
+                {
+                    case RegisterType.HoldingRegister:
+                        readResult = await modbus.ReadHoldingRegistersAsync(slaveAddress, startReg, regCount);
+                        break;
+                    case RegisterType.InputRegister:
+                        readResult = await modbus.ReadInputRegistersAsync(slaveAddress, startReg, regCount);
+                        break;
+                    default:
+                        throw new NotImplementedException();
+                }
+
+                deviceLastReadTimes[slaveAddress] = DateTime.Now;
+
+                int endRegister = readTask.StartRegister + readTask.RegisterCount;
+
+                for (int i = 0; i < readTask.RegisterCount; i++)
+                {
+                    int currNumber = readTask.StartRegister + i;
+                    var registers = readTask.Device.Registers
+                        .Where(r => r.Number == currNumber &&
+                                    r.RegType == readTask.RegType &&
+                                    r.EndRegisterNumber <= endRegister);
+
+                    foreach (var reg in registers)
+                    {
+                        var regValue = TypeConverter.Convert(readResult.Skip(i).Take(reg.SizeInRegisters).ToArray(), reg.RegFormat, reg.SizeInRegisters);
+
+                        if (reg.Scale != null)
+                        {
+                            var doubleRegValue = Convert.ToDouble(regValue);
+                            doubleRegValue = doubleRegValue * reg.Scale.Value;
+                            if (reg.Precision.HasValue)
+                            {
+                                doubleRegValue = Math.Round(doubleRegValue, reg.Precision.Value);
+                            }
+                            regValue = doubleRegValue;
+                        }
+
+                        logger.LogDebug($"Для регистра {reg.Name} получены данные {regValue}");
+                        if (topickStateService.UpdateTopicState(new TopickStateDto(reg.Name, regValue, readTime)))
+                        {
+                            logger.LogDebug($"Для регистра {reg.Name} данные добавлены в очередь отправки");
+                            mqttPublisher.PublishTopic(reg.Name);
+                        }
+                    }
+                }
             }
         }
-
-        static uint ToUint32(ushort v1, ushort v2) => ((uint)v1 << 16) + v2;
-
-        static ulong ToUint64(ushort v1, ushort v2, ushort v3, ushort v4) => ((ulong)ToUint32(v1, v2) << 32) + ToUint32(v3, v4);
 
     }
 }

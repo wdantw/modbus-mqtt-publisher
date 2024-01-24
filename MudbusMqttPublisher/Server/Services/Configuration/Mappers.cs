@@ -47,21 +47,21 @@ namespace MudbusMqttPublisher.Server.Services.Configuration
 
         public static PortSettings MapToSettings(this ModbusPortComplete port)
         {
-            var boudRate = port.BaudRate ?? DefaultSettings.BoudRate;
+            var baudRate = port.BaudRate ?? DefaultSettings.BaudRate;
             var serialName = port.SerialName.AssertNotNull();
 
             return new PortSettings(
                 portName: serialName,
-                baudRate: boudRate,
+                baudRate: baudRate,
                 dataBits: port.DataBits ?? DefaultSettings.DataBits,
                 parity: port.Parity ?? DefaultSettings.Parity,
                 stopBits: port.StopBits ?? DefaultSettings.StopBits,
-                minSleepTimeout: port.MinSleepTimeout ?? DefaultSettings.MinSleepTimeout(boudRate),
-                devices: port.Devices.Select(d => d.MapToSettings(port.Name, serialName)).ToArray()
+                minSleepTimeout: port.MinSleepTimeout ?? DefaultSettings.MinSleepTimeout(baudRate),
+                devices: port.Devices.Select(d => d.MapToSettings(port.Name, serialName, baudRate)).ToArray()
                 );
         }
 
-        public static DeviceSettings MapToSettings(this ModbusDeviceComplete device, string? baseName, string baseSerialName)
+        public static DeviceSettings MapToSettings(this ModbusDeviceComplete device, string? baseName, string baseSerialName, int baudRate)
         {
             var slaveAddress = device.SlaveAddress.AssertNotNull();
             var defaultDeviceName = TopicPathDelimeter + CombineTopicPath(baseName ?? baseSerialName, $"Dev{slaveAddress}");
@@ -73,6 +73,7 @@ namespace MudbusMqttPublisher.Server.Services.Configuration
                 maxBitHole: device.MaxBitHole ?? DefaultSettings.MaxBitHole,
                 maxReadRegisters: device.MaxReadRegisters ?? DefaultSettings.MaxReadRegisters,
                 maxReadBit: device.MaxReadBit ?? DefaultSettings.MaxReadBit,
+                minSleepTimeout: device.MinSleepTimeout ?? DefaultSettings.MinSleepTimeout(baudRate),
                 registers: device.Registers.Select(r => MapToSettings(r, CombineTopicPath(baseName, devNmae))).ToArray()
                 );
         }

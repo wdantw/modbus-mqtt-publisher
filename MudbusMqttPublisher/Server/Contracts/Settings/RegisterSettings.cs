@@ -2,26 +2,16 @@
 {
     public class RegisterSettings
     {
-        public RegisterSettings(RegisterSettings source, string namePrefix)
-            : this(source)
-        {
-            Name = namePrefix + Name;
-        }
-
-        public RegisterSettings(RegisterSettings source)
-        {
-            Name = source.Name;
-            Number = source.Number;
-            RegType = source.RegType;
-            RegFormat = source.RegFormat;
-            ReadPeriod = source.ReadPeriod;
-            Length = source.Length;
-            WbEvents = source.WbEvents;
-            Scale = source.Scale;
-            Precision = source.Precision;
-        }
-
-        public RegisterSettings(string name, ushort number, RegisterType regType, RegisterFormat regFormat, TimeSpan readPeriod, ushort? length, bool wbEvents, double? scale, int? precision)
+        public RegisterSettings(
+            string name,
+            ushort number,
+            RegisterType regType,
+            RegisterFormat regFormat,
+            TimeSpan readPeriod,
+            ushort? length,
+            bool wbEvents,
+            double? scale,
+            int? precision)
         {
             Name = name;
             Number = number;
@@ -62,42 +52,16 @@
 
         public ushort? Length { get; }
 
-        public TimeSpan ReadPeriod { get; private set; }
+        public TimeSpan ReadPeriod { get; }
 
-        public bool WbEvents { get; private set; }
+        public bool WbEvents { get; }
 
-        public double? Scale { get; private set; }
+        public double? Scale { get; }
 
-        public int? Precision { get; private set; }
+        public int? Precision { get; }
 
         public int SizeInRegisters => (Length ?? 1) * RegFormat.SizeInRegisters();
 
         public ushort EndRegisterNumber => (ushort)(Number + (ushort)SizeInRegisters);
-
-        public void UpdateScale(double scale)
-        {
-            if (RegFormat == RegisterFormat.String)
-                throw new Exception("Параметр Scale неприменим к строкам");
-
-            Scale = scale;
-        }
-
-        public void UpdatePrecision(int precision)
-        {
-            if (!Scale.HasValue)
-                throw new Exception("Параметр Precision применим только когда указан Scale");
-
-            Precision = precision;
-        }
-
-        public void UpdateWbEvents(bool wbEvents)
-        {
-            WbEvents = !wbEvents;
-        }
-
-        public void UpdatePeriod(TimeSpan readPeriod)
-        {
-            ReadPeriod = readPeriod;
-        }
     }
 }

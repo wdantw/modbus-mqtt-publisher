@@ -4,11 +4,11 @@ namespace MudbusMqttPublisher.Server.Contracts.Settings
 {
     public static class DefaultSettings
     {
-        public static int BoudRate => 9600;
+        public static int BaudRate => 9600;
         public static int DataBits => 8;
         public static Parity Parity => Parity.None;
         public static StopBits StopBits => StopBits.One;
-        public static TimeSpan MinSleepTimeout(int boudRate) => TimeSpan.FromMilliseconds(Math.Ceiling(38500000.0 / boudRate) / 1000.0);
+        public static TimeSpan MinSleepTimeout(int baudRate) => TimeSpan.FromMilliseconds(Math.Ceiling(38500000.0 / baudRate) / 1000.0);
         public static bool AllowWbEvents => false;
 
         // максимальконе количество чтения "пустых" одно байтовых регистров в запросе
