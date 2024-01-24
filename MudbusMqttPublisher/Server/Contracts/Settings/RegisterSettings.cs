@@ -7,7 +7,7 @@
             ushort number,
             RegisterType regType,
             RegisterFormat regFormat,
-            TimeSpan readPeriod,
+            TimeSpan? readPeriod,
             ushort? length,
             bool wbEvents,
             double? scale,
@@ -52,7 +52,7 @@
 
         public ushort? Length { get; }
 
-        public TimeSpan ReadPeriod { get; }
+        public TimeSpan? ReadPeriod { get; }
 
         public bool WbEvents { get; }
 

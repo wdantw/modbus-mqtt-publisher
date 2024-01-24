@@ -29,7 +29,7 @@ namespace MudbusMqttPublisher.Server.Services.Configuration
             dest.MergeReadParameters(overrides);
             dest.Name = overrides.Name ?? dest.Name;
             dest.ParentTypeName = overrides.ParentTypeName ?? dest.ParentTypeName;
-            dest.Registers.MergeRegisters(overrides.Registers, overrides.Modifires);
+            dest.Registers.MergeRegisters(overrides.Registers, overrides.Modifiers);
 
             return dest;
         }

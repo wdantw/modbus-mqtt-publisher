@@ -85,7 +85,7 @@ namespace MudbusMqttPublisher.Server.Services.Configuration
                 number: register.Number.AssertNotNull(),
                 regType: register.RegType.AssertNotNull().GetRegisterType(),
                 regFormat: register.RegType.AssertNotNull().GetRegisterFormat(),
-                readPeriod: register.ReadPeriod ?? TimeSpan.MaxValue,
+                readPeriod: register.ReadPeriod,
                 length: register.Length,
                 wbEvents: register.WbEvents ?? DefaultSettings.AllowWbEvents,
                 scale: register.Scale,

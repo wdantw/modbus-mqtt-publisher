@@ -47,14 +47,29 @@ namespace MudbusMqttPublisher.Server.Services
             this.mqttPublisher = mqttPublisher;
         }
 
-        private DateTime GetNextReadTime(DeviceSettings dev, RegisterSettings reg)
+        private DateTime GetNextReadTime(DeviceSettings dev, RegisterSettings reg, DateTime curTime)
         {
-            var result = (topickStateService.GetTopicState(reg.Name)?.ReadTime ?? DateTime.MinValue) + reg.ReadPeriod;
+            DateTime result;
+
+            var lastReadTime = topickStateService.GetTopicState(reg.Name)?.ReadTime;
+
+            if (lastReadTime.HasValue)
+            {
+                if (reg.ReadPeriod.HasValue)
+                    result = lastReadTime.Value + reg.ReadPeriod.Value;
+                else
+                    result = DateTime.MaxValue;
+            }
+            else
+            {
+                result = DateTime.MinValue;
+            }
 
             if (deviceLastReadTimes.TryGetValue(dev.SlaveAddress, out var deviceLastReadTime))
             {
                 var minDeviceNextReadTime = deviceLastReadTime + dev.MinSleepTimeout;
-                if (result < minDeviceNextReadTime)
+                // нелзя сравнивать с result, так как будет потерян приоритет для регистров, которые ни разу не читались
+                if (curTime < minDeviceNextReadTime)
                     result = minDeviceNextReadTime;
             }
 
@@ -65,7 +80,7 @@ namespace MudbusMqttPublisher.Server.Services
         {
             var currTime = DateTime.Now;
 
-            var pending = settings.Devices.SelectMany(d => d.Registers.Select(r => new { Device = d, Register = r, NextReadTime = GetNextReadTime(d, r) }))
+            var pending = settings.Devices.SelectMany(d => d.Registers.Select(r => new { Device = d, Register = r, NextReadTime = GetNextReadTime(d, r, currTime) }))
                 .OrderBy(r => r.NextReadTime)
                 .FirstAndFilterdByFirst((f, c) =>
                 {
@@ -201,6 +216,9 @@ namespace MudbusMqttPublisher.Server.Services
                 if (waitForTime.HasValue)
                 {
                     var delay = waitForTime.Value - DateTime.Now;
+                    if (delay > TimeSpan.FromHours(1)) delay = TimeSpan.FromHours(1);
+                    // чтоб не ломалось во время отладки или лагов
+                    if (delay < TimeSpan.Zero) continue;
                     logger.LogDebug($"Ожидание следующего чтения {delay}");
                     await Task.Delay(delay, cancellationToken);
                     continue;

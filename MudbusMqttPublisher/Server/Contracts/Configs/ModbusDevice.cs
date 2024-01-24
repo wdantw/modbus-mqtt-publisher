@@ -9,7 +9,7 @@
     public class ModbusDeviceConfigBase : ModbusDeviceBaseShared
     {
         public ModbusRegisterTemplate[] Registers { get; set; } = Array.Empty<ModbusRegisterTemplate>();
-        public ModbusRegisterModifier[] Modifires { get; set; } = Array.Empty<ModbusRegisterModifier>();
+        public ModbusRegisterModifier[] Modifiers { get; set; } = Array.Empty<ModbusRegisterModifier>();
     }
 
     public class ModbusDeviceConfig : ModbusDeviceConfigBase
