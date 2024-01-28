@@ -205,7 +205,9 @@ namespace MudbusMqttPublisher.Server.Services
 
             while (!cancellationToken.IsCancellationRequested)
             {
-                var writeQueries = writeQueueService.GetQueries(settings.SerialName);
+				logger.LogDebug($"Новый цикл работы с портом");
+
+				var writeQueries = writeQueueService.GetQueries(settings.SerialName);
                 if (writeQueries.Length > 0)
                 {
                     await PerfomWriteRequest(master, writeQueries);
@@ -385,6 +387,7 @@ namespace MudbusMqttPublisher.Server.Services
 						{
 							var currReg = groupArr[regInd];
 							currReg.Value.ToModbus(data.GetSegment(currReg.Register.Number - firstRegister.Number, currReg.Register.SizeInRegisters));
+                            logger.LogDebug($"Запись в modbus {currReg.Register.Name} = {currReg.Value}");
 						}
 
                         await modbus.WriteMultipleCoilsAsync(groupArr[0].Device.SlaveAddress, groupArr[startInd].Register.Number, data);
@@ -406,6 +409,7 @@ namespace MudbusMqttPublisher.Server.Services
                         {
                             var currReg = groupArr[regInd];
                             currReg.Value.ToModbus(data.GetSegment(currReg.Register.Number - firstRegister.Number, currReg.Register.SizeInRegisters));
+							logger.LogDebug($"Запись в modbus {currReg.Register.Name} = {currReg.Value}");
 						}
 
                         await modbus.WriteMultipleRegistersAsync(groupArr[0].Device.SlaveAddress, groupArr[startInd].Register.Number, data);

@@ -32,7 +32,7 @@ namespace MudbusMqttPublisher.Server.Services
 
                 if (changed)
                 {
-					Value = updateCommand.Value;
+					Value.UpdateFrom(updateCommand.Value);
 					LastReadTime = readTime;
 					LastUpdateTime = readTime;
 				}

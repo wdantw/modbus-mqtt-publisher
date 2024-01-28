@@ -10,8 +10,8 @@
 
 		protected override string ValueToString(int data) => Convert.ToString(data);
 
-		public override double ToDouble() => Value;
+		public override double ToDouble() => _value;
 
-		public override void FromDouble(double value) => Value = (int)value;
+		public override void FromDouble(double value) => TypeUtils.FromDouble(ref _value, value);
 	}
 }

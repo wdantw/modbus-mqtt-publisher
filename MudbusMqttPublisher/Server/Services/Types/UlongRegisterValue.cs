@@ -12,8 +12,8 @@ namespace MudbusMqttPublisher.Server.Services.Types
 
 		protected override string ValueToString(ulong data) => Convert.ToString(data);
 
-		public override double ToDouble() => Value;
+		public override double ToDouble() => _value;
 
-		public override void FromDouble(double value) => Value = (ulong)value;
+		public override void FromDouble(double value) => TypeUtils.FromDouble(ref _value, value);
 	}
 }

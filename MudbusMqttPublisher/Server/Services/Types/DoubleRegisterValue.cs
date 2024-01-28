@@ -8,6 +8,7 @@ namespace MudbusMqttPublisher.Server.Services.Types
 		double _value;
 		double _scale;
 		double _compareDiff;
+		double _copyDelay;
 		int? _precision;
 		string _decimalSeparator;
 		IRegisterValue _sourceValue;
@@ -19,13 +20,25 @@ namespace MudbusMqttPublisher.Server.Services.Types
 			_precision = precision;
 			_decimalSeparator = decimalSeparator;
 			_sourceValue = sourceValue;
-			
+
+			_copyDelay = 0;
+
 			if (compareDiff.HasValue)
+			{
 				_compareDiff = compareDiff.Value;
-			else if (_precision.HasValue)
-				_compareDiff = 1.5 / Math.Pow(10, _precision.Value);
+			}
 			else
-				_compareDiff = _scale * 1.5;
+			{
+				if (_precision.HasValue)
+				{
+					_copyDelay = 1.0 / Math.Pow(10, _precision.Value);
+					_compareDiff = 1.01 * _copyDelay;
+				}
+				else
+				{
+					_compareDiff = _scale * 0.01;
+				}
+			}
 
 			var format = (NumberFormatInfo)NumberFormatInfo.CurrentInfo.Clone();
 			format.NumberDecimalSeparator = _decimalSeparator;
@@ -96,5 +109,17 @@ namespace MudbusMqttPublisher.Server.Services.Types
 		}
 
 		public override string ToString() => Convert.ToString(_value, _formatProvider);
+
+		public void UpdateFrom(IRegisterValue value)
+		{
+			var newValue = ((DoubleRegisterValue)value)._value;
+			if (newValue > _value)
+				_value = newValue - _copyDelay;
+			else
+				_value = newValue + _copyDelay;
+
+			if (_precision.HasValue)
+				_value = Math.Round(_value, _precision.Value);
+		}
 	}
 }

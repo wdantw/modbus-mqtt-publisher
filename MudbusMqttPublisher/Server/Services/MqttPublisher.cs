@@ -49,12 +49,12 @@ namespace MudbusMqttPublisher.Server.Services
                 if (state == null)
                     continue;
 
-                logger.LogInformation($"Публикация информации для топика {dequeuedName}");
+                logger.LogInformation($"Публикация информации для топика {dequeuedName} = {state.Value}");
 
 
                 var applicationMessage = new MqttApplicationMessageBuilder()
                     .WithTopic(dequeuedName)
-                    .WithPayload(state.Value.ToString())
+                    .WithPayload(state.Value.ToMqtt())
                     .WithRetainFlag(true)
                     .Build();
 

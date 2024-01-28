@@ -55,5 +55,11 @@ namespace MudbusMqttPublisher.Server.Services.Types
 		}
 
 		public override string ToString() => _value;
+
+		public void UpdateFrom(IRegisterValue value)
+		{
+			_value = ((StringRegisterValue)value)._value;
+		}
+
 	}
 }

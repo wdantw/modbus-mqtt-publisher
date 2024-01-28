@@ -43,9 +43,14 @@ namespace MudbusMqttPublisher.Server.Services.Types
 
 		public void FromDouble(double value)
 		{
-			_value = Convert.ToBoolean(_value);
+			TypeUtils.FromDouble(ref _value, value);
 		}
 
 		public override string ToString() => Convert.ToString(_value);
+
+		public void UpdateFrom(IRegisterValue value)
+		{
+			_value = ((BitRegisterValue)value)._value;
+		}
 	}
 }

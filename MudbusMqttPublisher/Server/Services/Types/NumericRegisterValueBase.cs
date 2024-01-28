@@ -6,9 +6,7 @@ namespace MudbusMqttPublisher.Server.Services.Types
 	public abstract class NumericRegisterValueBase<T> : IRegisterValue
 		where T : struct, IEquatable<T>
 	{
-		private T _value = default;
-
-		protected T Value { get => _value; set => _value = value; }
+		protected T _value = default;
 
 		protected abstract T ValueFromBytes(ReadOnlySpan<byte> data);
 		protected abstract byte[] ValueToBytes(T data);
@@ -54,5 +52,11 @@ namespace MudbusMqttPublisher.Server.Services.Types
 		}
 
 		public override string ToString() => ValueToString(_value);
+
+		public void UpdateFrom(IRegisterValue value)
+		{
+			_value = ((NumericRegisterValueBase<T>)value)._value;
+		}
+
 	}
 }

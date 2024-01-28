@@ -10,5 +10,6 @@
 		byte[] ToMqtt();
 		double ToDouble();
 		void FromDouble(double value);
+		void UpdateFrom(IRegisterValue value);
 	}
 }
