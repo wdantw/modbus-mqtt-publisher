@@ -1,4 +1,6 @@
-﻿namespace MudbusMqttPublisher.Server.Contracts
+﻿using MudbusMqttPublisher.Server.Services.Types;
+
+namespace MudbusMqttPublisher.Server.Contracts
 {
-    public record WriteQuery(string TopicName, object Value);
+    public record WriteQuery(string TopicName, ArraySegment<byte> Value);
 }

@@ -23,5 +23,7 @@ namespace MudbusMqttPublisher.Server.Contracts.Settings
 
         // максимальное количество регистров для чтения в одном запросе (ограничение протокола)
         public static int MaxReadBit => 250 * 8;
+
+        public static string DecimalSeparator = ".";
     }
 }

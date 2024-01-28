@@ -13,7 +13,7 @@ namespace MudbusMqttPublisher.Server.Services
             return queues.GetOrAdd(serialName, _ => new AwaiteableQueue<WriteQuery>());
         }
 
-        public void AddWriteRequest(string serialName, string topicName, object value)
+        public void AddWriteRequest(string serialName, string topicName, ArraySegment<byte> value)
         {
             var queue = GetQueue(serialName);
             queue.Enqueue(new WriteQuery(topicName, value));

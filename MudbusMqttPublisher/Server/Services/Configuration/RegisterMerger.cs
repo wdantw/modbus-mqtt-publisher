@@ -8,15 +8,16 @@ namespace MudbusMqttPublisher.Server.Services.Configuration
 
         public static void MergeRegisterCommonParams(this ModbusRegisterCommonParams dest, ModbusRegisterCommonParams overrides)
         {
-            dest.Scale = overrides.Scale ?? dest.Scale;
+			dest.Scale = overrides.Scale ?? dest.Scale;
             dest.Precision = overrides.Precision ?? dest.Precision;
             dest.WbEvents = overrides.WbEvents ?? dest.WbEvents;
             dest.ReadPeriod = overrides.ReadPeriod ?? dest.ReadPeriod;
             dest.Tags = overrides.Tags ?? dest.Tags;
             dest.Name = overrides.Name ?? dest.Name;
-        }
+			dest.DecimalSeparator = overrides.DecimalSeparator ?? dest.DecimalSeparator;
+		}
 
-        private static string[] TagList(this string? tags)
+		private static string[] TagList(this string? tags)
         {
             if (tags == null)
                 return Array.Empty<string>();

@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Options;
 using MudbusMqttPublisher.Server.Contracts;
 using MudbusMqttPublisher.Server.Contracts.Configs;
+using MudbusMqttPublisher.Server.Services.Types;
 using System.Collections.Concurrent;
 
 namespace MudbusMqttPublisher.Server.Services
@@ -10,11 +11,11 @@ namespace MudbusMqttPublisher.Server.Services
         private class TopickState
         {
             public string Name { get; }
-            public object Value { get; set; }
+            public IRegisterValue Value { get; set; }
             public DateTime LastReadTime { get; set; }
             public DateTime LastUpdateTime { get; set; }
 
-            public TopickState(string name, object value, DateTime time)
+            public TopickState(string name, IRegisterValue value, DateTime time)
             {
                 Name = name;
                 Value = value;
@@ -27,7 +28,7 @@ namespace MudbusMqttPublisher.Server.Services
                 if (updateCommand.TopickName != Name)
                     throw new Exception("Имя топика не совпадает с переданной командой");
 
-                var changed = !Equals(Value, updateCommand.Value);
+                var changed = !Value.Equals(updateCommand.Value);
 
                 Value = updateCommand.Value;
                 LastReadTime = readTime;

@@ -2,45 +2,50 @@
 {
     public class RegisterSettings
     {
-        public RegisterSettings(
-            string name,
-            ushort number,
-            RegisterType regType,
-            RegisterFormat regFormat,
-            TimeSpan? readPeriod,
-            ushort? length,
-            bool wbEvents,
-            double? scale,
-            int? precision)
-        {
-            Name = name;
-            Number = number;
-            RegType = regType;
-            RegFormat = regFormat;
-            ReadPeriod = readPeriod;
-            Length = length;
-            WbEvents = wbEvents;
-            Scale = scale;
-            Precision = precision;
+		public RegisterSettings(
+			string name,
+			ushort number,
+			RegisterType regType,
+			RegisterFormat regFormat,
+			TimeSpan? readPeriod,
+			ushort? length,
+			bool wbEvents,
+			double? scale,
+			int? precision,
+			string? decimalSeparator)
+		{
+			Name = name;
+			Number = number;
+			RegType = regType;
+			RegFormat = regFormat;
+			ReadPeriod = readPeriod;
+			Length = length;
+			WbEvents = wbEvents;
+			Scale = scale;
+			Precision = precision;
+			DecimalSeparator = decimalSeparator;
 
-            if (regFormat == RegisterFormat.String && !length.HasValue)
-                throw new Exception("Не указана длина строки для строкового регистра");
+			if (regFormat == RegisterFormat.String && !length.HasValue)
+				throw new Exception("Не указана длина строки для строкового регистра");
 
-            if (regFormat != RegisterFormat.String && length.HasValue)
-                throw new Exception("Указана длина строки для не строкового регистра");
+			if (regFormat != RegisterFormat.String && length.HasValue)
+				throw new Exception("Указана длина строки для не строкового регистра");
 
-            if (SizeInRegisters > ushort.MaxValue - number)
-                throw new Exception("Регистр выходит за гарицы адресного пространства");
+			if (SizeInRegisters > ushort.MaxValue - number)
+				throw new Exception("Регистр выходит за гарицы адресного пространства");
 
-            if (RegFormat == RegisterFormat.String && Scale.HasValue)
-                throw new Exception("Параметр Scale неприменим к строкам");
+			if (RegFormat == RegisterFormat.String && Scale.HasValue)
+				throw new Exception("Параметр Scale неприменим к строкам");
 
-            if (Precision.HasValue && !Scale.HasValue)
-                throw new Exception("Параметр Precision применим только когда указан Scale");
-        }
+			if (Precision.HasValue && !Scale.HasValue)
+				throw new Exception("Параметр Precision применим только когда указан Scale");
 
-        // имя топика mqtt
-        public string Name { get; private set; }
+			if (DecimalSeparator != null && !Scale.HasValue)
+				throw new Exception("Параметр DecimalSeparator применим только когда указан Scale");
+		}
+
+		// имя топика mqtt
+		public string Name { get; private set; }
 
         // номер регистра
         public ushort Number { get; }
@@ -59,6 +64,10 @@
         public double? Scale { get; }
 
         public int? Precision { get; }
+
+        public string? DecimalSeparator { get; }
+
+		public double? CompareDiff { get; } = null;
 
         public int SizeInRegisters => (Length ?? 1) * RegFormat.SizeInRegisters();
 

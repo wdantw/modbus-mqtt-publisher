@@ -1,9 +1,11 @@
-﻿namespace MudbusMqttPublisher.Server.Contracts
+﻿using MudbusMqttPublisher.Server.Services.Types;
+
+namespace MudbusMqttPublisher.Server.Contracts
 {
     public record TopickStateDto
     (
         string TopickName,
-        object Value,
+        IRegisterValue Value,
         DateTime ReadTime
     );
 }

@@ -72,7 +72,8 @@ namespace MudbusMqttPublisher.Server.Services.Configuration
                 length: register.Length,
                 wbEvents: register.WbEvents ?? DefaultSettings.AllowWbEvents,
                 scale: register.Scale,
-                precision: register.Precision
+                precision: register.Precision,
+                decimalSeparator: register.DecimalSeparator
                 );
         }
     }

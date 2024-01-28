@@ -50,9 +50,7 @@ namespace MudbusMqttPublisher.Server.Services
             if (serialName == null)
                 return Task.CompletedTask;
 
-            var playLoad = Encoding.ASCII.GetString(arg.ApplicationMessage.PayloadSegment);
-
-            writeQueueService.AddWriteRequest(serialName, name, playLoad);
+            writeQueueService.AddWriteRequest(serialName, name, arg.ApplicationMessage.PayloadSegment);
 
             return Task.CompletedTask;
         }

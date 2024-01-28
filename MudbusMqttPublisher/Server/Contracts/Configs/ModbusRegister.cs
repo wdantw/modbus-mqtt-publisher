@@ -19,6 +19,8 @@
 
         // наименование топика в Mqtt (относительное, в дальшейнем будет возможность указать абсолютное или даже использовать шаблон)
         public string? Name { get; set; }
+
+        public string? DecimalSeparator { get; set; }
     }
 
     public class ModbusRegisterModifier : ModbusRegisterCommonParams
