@@ -16,9 +16,9 @@ namespace MudbusMqttPublisher.Server.Contracts.Configs
     {
         public ModbusDeviceConfig[] Devices { get; set; } = Array.Empty<ModbusDeviceConfig>();
 
-        // переопределение свойств у всех регистров на порту
-        public ModbusRegisterCommonParams[] Overrides { get; set; } = Array.Empty<ModbusRegisterCommonParams>();
-    }
+		// переопределение свойств у всех регистров на порту
+		public ModbusRegisterModifier[] Modifiers { get; set; } = Array.Empty<ModbusRegisterModifier>();
+	}
 
     public class ModbusPortComplete : ModbusPortBase
     {
@@ -29,5 +29,10 @@ namespace MudbusMqttPublisher.Server.Contracts.Configs
     {
         public const string SectionName = "ModbusPorts";
     }
+
+	public class ModbusModifiers : List<ModbusRegisterModifier>
+	{
+		public const string SectionName = "ModbusModifiers";
+	}
 
 }

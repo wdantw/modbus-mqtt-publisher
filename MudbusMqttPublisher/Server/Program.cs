@@ -21,7 +21,8 @@ namespace MudbusMqttPublisher
 
             builder.Services.Configure<MqttOptions>(builder.Configuration.GetSection(MqttOptions.SectionName));
             builder.Services.Configure<ModbusDeviceTypes>(builder.Configuration.GetSection(ModbusDeviceTypes.SectionName));
-            builder.Services.Configure<ModbusPorts>(builder.Configuration.GetSection(ModbusPorts.SectionName));
+			builder.Services.Configure<ModbusPorts>(builder.Configuration.GetSection(ModbusPorts.SectionName));
+			builder.Services.Configure<ModbusModifiers>(builder.Configuration.GetSection(ModbusModifiers.SectionName));
 
 			builder.Services.AddTransient<IQueueFactoryService, QueueFactoryService>();
             builder.Services.AddTransient<ModbusLogger>();

@@ -21,7 +21,9 @@
         public string? Name { get; set; }
 
         public string? DecimalSeparator { get; set; }
-    }
+
+        public double? CompareDiff { get; set; }
+	}
 
     public class ModbusRegisterModifier : ModbusRegisterCommonParams
     {

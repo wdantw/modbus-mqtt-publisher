@@ -23,9 +23,9 @@ namespace MudbusMqttPublisher.Server.Services.Types
 			if (compareDiff.HasValue)
 				_compareDiff = compareDiff.Value;
 			else if (_precision.HasValue)
-				_compareDiff = 1.0 / Math.Pow(10, _precision.Value);
+				_compareDiff = 1.5 / Math.Pow(10, _precision.Value);
 			else
-				_compareDiff = Math.Min(_scale, 1.0);
+				_compareDiff = _scale * 1.5;
 
 			var format = (NumberFormatInfo)NumberFormatInfo.CurrentInfo.Clone();
 			format.NumberDecimalSeparator = _decimalSeparator;

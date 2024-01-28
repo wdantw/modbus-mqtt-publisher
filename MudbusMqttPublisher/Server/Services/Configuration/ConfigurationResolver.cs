@@ -41,15 +41,17 @@ namespace MudbusMqttPublisher.Server.Services.Configuration
         }
 
         private readonly IOptions<ModbusDeviceTypes> deviceTypes;
-        private readonly IOptions<ModbusPorts> ports;
+		private readonly IOptions<ModbusPorts> ports;
+		private readonly IOptions<ModbusModifiers> globalModifires;
 
-        public ConfigurationResolver(IOptions<ModbusDeviceTypes> deviceTypes, IOptions<ModbusPorts> ports)
-        {
-            this.deviceTypes = deviceTypes;
-            this.ports = ports;
-        }
+		public ConfigurationResolver(IOptions<ModbusDeviceTypes> deviceTypes, IOptions<ModbusPorts> ports, IOptions<ModbusModifiers> globalModifires)
+		{
+			this.deviceTypes = deviceTypes;
+			this.ports = ports;
+			this.globalModifires = globalModifires;
+		}
 
-        public PortSettings[] ResolveConfigs()
+		public PortSettings[] ResolveConfigs()
         {
             var typeMap = new Dictionary<string, ITypeResolver>();
 
@@ -67,8 +69,10 @@ namespace MudbusMqttPublisher.Server.Services.Configuration
             if (ports.Value == null)
                 return Array.Empty<PortSettings>();
 
+            var modifires = globalModifires.Value?.AsEnumerable() ?? Array.Empty<ModbusRegisterModifier>();
+
             var restul = ports.Value
-                .Select(p => new ModbusPortComplete().MergePort(p, typeMap))
+                .Select(p => new ModbusPortComplete().MergePort(p, typeMap, modifires))
                 .Select(p => p.MapToSettings())
                 .ToArray();
 

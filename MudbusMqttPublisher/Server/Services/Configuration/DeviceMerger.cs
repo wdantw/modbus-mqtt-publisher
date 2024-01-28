@@ -1,4 +1,5 @@
 ﻿using MudbusMqttPublisher.Server.Contracts.Configs;
+using System.Collections.ObjectModel;
 
 namespace MudbusMqttPublisher.Server.Services.Configuration
 {
@@ -16,7 +17,14 @@ namespace MudbusMqttPublisher.Server.Services.Configuration
             return dest;
         }
 
-        public static ModbusDeviceCompleteBase MergeModbusDeviceBase(this ModbusDeviceCompleteBase dest, ModbusDeviceConfigBase overrides, Dictionary<string, ITypeResolver> typeMap)
+        public static T ApplyRegisterModifires<T>(this T dest, IEnumerable<ModbusRegisterModifier> modifiers)
+            where T : ModbusDeviceCompleteBase
+		{
+            dest.Registers.ApplyRegistersModifiers(modifiers);
+            return dest;
+        }
+
+		public static ModbusDeviceCompleteBase MergeModbusDeviceBase(this ModbusDeviceCompleteBase dest, ModbusDeviceConfigBase overrides, Dictionary<string, ITypeResolver> typeMap)
         {
             if (overrides.ParentTypeName != null)
             {
@@ -41,7 +49,7 @@ namespace MudbusMqttPublisher.Server.Services.Configuration
             return dest;
         }
 
-        public static ModbusPortComplete MergePort(this ModbusPortComplete dest, ModbusPortConfig overrides, Dictionary<string, ITypeResolver> typeMap)
+        public static ModbusPortComplete MergePort(this ModbusPortComplete dest, ModbusPortConfig overrides, Dictionary<string, ITypeResolver> typeMap, IEnumerable<ModbusRegisterModifier> globalModifiers)
         {
             dest.MergeReadParameters(overrides);
             dest.Name = overrides.Name ?? dest.Name;
@@ -50,7 +58,13 @@ namespace MudbusMqttPublisher.Server.Services.Configuration
             dest.DataBits = overrides.DataBits ?? dest.DataBits;
             dest.Parity = overrides.Parity ?? dest.Parity;
             dest.StopBits = overrides.StopBits ?? dest.StopBits;
-            dest.Devices = overrides.Devices.Select(d => new ModbusDeviceComplete().MergeReadParameters(dest).MergeDevice(d, typeMap)).ToArray();
+            dest.Devices = overrides.Devices.Select(d =>
+                new ModbusDeviceComplete()
+                    .MergeReadParameters(dest)
+                    .MergeDevice(d, typeMap)
+                    .ApplyRegisterModifires(overrides.Modifiers)
+                    .ApplyRegisterModifires(globalModifiers)
+			).ToArray();
             return dest;
         }
 

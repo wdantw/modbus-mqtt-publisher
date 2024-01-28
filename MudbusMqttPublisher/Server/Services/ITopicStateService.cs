@@ -6,5 +6,6 @@ namespace MudbusMqttPublisher.Server.Services
     {
         TopickStateDto? GetTopicState(string name);
         bool UpdateTopicState(TopickStateDto command);
+        void RemoveTopicState(string name);
     }
 }

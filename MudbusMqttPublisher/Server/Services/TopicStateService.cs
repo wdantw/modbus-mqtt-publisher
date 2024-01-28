@@ -30,11 +30,14 @@ namespace MudbusMqttPublisher.Server.Services
 
                 var changed = !Value.Equals(updateCommand.Value);
 
-                Value = updateCommand.Value;
-                LastReadTime = readTime;
-                if (changed) LastUpdateTime = readTime;
+                if (changed)
+                {
+					Value = updateCommand.Value;
+					LastReadTime = readTime;
+					LastUpdateTime = readTime;
+				}
 
-                return changed;
+				return changed;
             }
         }
 
@@ -62,5 +65,10 @@ namespace MudbusMqttPublisher.Server.Services
             return new TopickStateDto(name, state.Value, state.LastReadTime);
         }
 
-    }
+		public void RemoveTopicState(string name)
+        {
+            topickStates.TryRemove(name, out var _);
+        }
+
+	}
 }

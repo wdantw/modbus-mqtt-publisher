@@ -411,7 +411,13 @@ namespace MudbusMqttPublisher.Server.Services
                         await modbus.WriteMultipleRegistersAsync(groupArr[0].Device.SlaveAddress, groupArr[startInd].Register.Number, data);
                     }
 
-                    startInd = endInd;
+					for (var regInd = startInd; regInd < endInd; regInd++)
+					{
+						var currReg = groupArr[regInd];
+                        topickStateService.RemoveTopicState(currReg.Register.Name);
+					}
+
+					startInd = endInd;
                 }
             }
         }

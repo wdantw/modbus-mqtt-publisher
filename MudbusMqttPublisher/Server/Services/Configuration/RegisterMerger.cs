@@ -1,4 +1,5 @@
 ﻿using MudbusMqttPublisher.Server.Contracts.Configs;
+using System.Collections.ObjectModel;
 using System.Text.RegularExpressions;
 
 namespace MudbusMqttPublisher.Server.Services.Configuration
@@ -15,6 +16,7 @@ namespace MudbusMqttPublisher.Server.Services.Configuration
             dest.Tags = overrides.Tags ?? dest.Tags;
             dest.Name = overrides.Name ?? dest.Name;
 			dest.DecimalSeparator = overrides.DecimalSeparator ?? dest.DecimalSeparator;
+			dest.CompareDiff = overrides.CompareDiff ?? dest.CompareDiff;
 		}
 
 		private static string[] TagList(this string? tags)
@@ -47,17 +49,27 @@ namespace MudbusMqttPublisher.Server.Services.Configuration
             return dest;
         }
 
-        public static List<ModbusRegisterCompleted> MergeRegisters(
+		public static List<ModbusRegisterCompleted> ApplyRegistersModifiers(
+			this List<ModbusRegisterCompleted> dest,
+			IEnumerable<ModbusRegisterModifier> modifiers
+			)
+		{
+			foreach (var reg in dest)
+				reg.ApplyRegisterModifiers(modifiers);
+
+			return dest;
+		}
+
+		public static List<ModbusRegisterCompleted> MergeRegisters(
             this List<ModbusRegisterCompleted> dest,
             ModbusRegisterTemplate[] templates,
-            ModbusRegisterModifier[] modifiers
+			IEnumerable<ModbusRegisterModifier> modifiers
             )
         {
             foreach (var newReg in templates.SelectMany(t => t.ResolveRegisters()))
                 dest.Add(newReg);
 
-            foreach (var reg in dest)
-                reg.ApplyRegisterModifiers(modifiers);
+            dest.ApplyRegistersModifiers(modifiers);
 
             return dest;
         }

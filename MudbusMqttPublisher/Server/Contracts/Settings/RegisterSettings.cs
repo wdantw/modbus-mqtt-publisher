@@ -12,7 +12,8 @@
 			bool wbEvents,
 			double? scale,
 			int? precision,
-			string? decimalSeparator)
+			string? decimalSeparator,
+			double? compareDiff)
 		{
 			Name = name;
 			Number = number;
@@ -24,6 +25,7 @@
 			Scale = scale;
 			Precision = precision;
 			DecimalSeparator = decimalSeparator;
+			CompareDiff = compareDiff;
 
 			if (regFormat == RegisterFormat.String && !length.HasValue)
 				throw new Exception("Не указана длина строки для строкового регистра");
@@ -42,6 +44,9 @@
 
 			if (DecimalSeparator != null && !Scale.HasValue)
 				throw new Exception("Параметр DecimalSeparator применим только когда указан Scale");
+
+			if (CompareDiff != null && !Scale.HasValue)
+				throw new Exception("Параметр CompareDiff применим только когда указан Scale");
 		}
 
 		// имя топика mqtt
