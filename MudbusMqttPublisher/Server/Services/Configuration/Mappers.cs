@@ -40,8 +40,10 @@ namespace MudbusMqttPublisher.Server.Services.Configuration
                 parity: port.Parity ?? DefaultSettings.Parity,
                 stopBits: port.StopBits ?? DefaultSettings.StopBits,
                 minSleepTimeout: port.MinSleepTimeout ?? DefaultSettings.MinSleepTimeout(baudRate),
-                devices: port.Devices.Select(d => d.MapToSettings(port.Name, serialName, baudRate)).ToArray()
-                );
+                devices: port.Devices.Select(d => d.MapToSettings(port.Name, serialName, baudRate)).ToArray(),
+                readTimeout: port.ReadTimeout ?? DefaultSettings.DefaultPortTimeout,
+                writeTimeout: port.WriteTimeout ?? DefaultSettings.DefaultPortTimeout
+				);
         }
 
         public static DeviceSettings MapToSettings(this ModbusDeviceComplete device, string? baseName, string baseSerialName, int baudRate)

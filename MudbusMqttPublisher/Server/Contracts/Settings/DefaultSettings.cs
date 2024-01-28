@@ -25,5 +25,7 @@ namespace MudbusMqttPublisher.Server.Contracts.Settings
         public static int MaxReadBit => 250 * 8;
 
         public static string DecimalSeparator = ".";
+
+        public static TimeSpan DefaultPortTimeout = TimeSpan.FromSeconds(1);
     }
 }

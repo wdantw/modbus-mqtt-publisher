@@ -10,6 +10,8 @@ namespace MudbusMqttPublisher.Server.Contracts.Configs
         public int? DataBits { get; set; }
         public Parity? Parity { get; set; }
         public StopBits? StopBits { get; set; }
+        public TimeSpan? ReadTimeout { get; set; }
+        public TimeSpan? WriteTimeout { get; set; }
     }
 
     public class ModbusPortConfig : ModbusPortBase

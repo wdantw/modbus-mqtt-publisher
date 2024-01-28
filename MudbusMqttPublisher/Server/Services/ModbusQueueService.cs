@@ -194,13 +194,16 @@ namespace MudbusMqttPublisher.Server.Services
             port.DataBits = settings.DataBits;
             port.Parity = settings.Parity;
             port.StopBits = settings.StopBits;
-            //port.DtrEnable = true;
-            //port.RtsEnable = true;
-            port.Open();
+			//port.DtrEnable = true;
+			//port.RtsEnable = true;
+			port.ReadTimeout = (int)settings.ReadTimeout.TotalMilliseconds;
+			port.WriteTimeout = (int)settings.WriteTimeout.TotalMilliseconds;
+			port.Open();
 
             using var master = modbusFactory.CreateRtuMaster(port);
 
-            while (!cancellationToken.IsCancellationRequested)
+
+			while (!cancellationToken.IsCancellationRequested)
             {
 				logger.LogDebug($"Новый цикл работы с портом");
 

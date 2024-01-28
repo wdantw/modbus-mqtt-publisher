@@ -56,8 +56,10 @@ namespace MudbusMqttPublisher.Server.Services.Configuration
             dest.BaudRate = overrides.BaudRate ?? dest.BaudRate;
             dest.DataBits = overrides.DataBits ?? dest.DataBits;
             dest.Parity = overrides.Parity ?? dest.Parity;
-            dest.StopBits = overrides.StopBits ?? dest.StopBits;
-            dest.Devices = overrides.Devices.Select(d =>
+			dest.StopBits = overrides.StopBits ?? dest.StopBits;
+			dest.ReadTimeout = overrides.ReadTimeout ?? dest.ReadTimeout;
+			dest.WriteTimeout = overrides.WriteTimeout ?? dest.WriteTimeout;
+			dest.Devices = overrides.Devices.Select(d =>
                 new ModbusDeviceComplete()
                     .MergeReadParameters(dest)
                     .MergeDevice(d, typeMap)
