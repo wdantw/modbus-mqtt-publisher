@@ -26,7 +26,7 @@ namespace MudbusMqttPublisher.Server.Services
         private readonly IWriteQueueService writeQueueService;
         private readonly IRegisterValueFactory registerValueFactory;
 
-		Dictionary<byte, DateTime> deviceLastReadTimes = new();
+		Dictionary<byte, DateTime> deviceMinMextReadTimes = new();
 
 		public ModbusQueueService(
 			PortSettings settings,
@@ -64,12 +64,11 @@ namespace MudbusMqttPublisher.Server.Services
                 result = DateTime.MinValue;
             }
 
-            if (deviceLastReadTimes.TryGetValue(dev.SlaveAddress, out var deviceLastReadTime))
+            if (deviceMinMextReadTimes.TryGetValue(dev.SlaveAddress, out var deviceMinNextReadTime))
             {
-                var minDeviceNextReadTime = deviceLastReadTime + dev.MinSleepTimeout;
                 // нелзя сравнивать с result, так как будет потерян приоритет для регистров, которые ни разу не читались
-                if (curTime < minDeviceNextReadTime)
-                    result = minDeviceNextReadTime;
+                if (curTime < deviceMinNextReadTime)
+                    result = deviceMinNextReadTime;
             }
 
             return result;
@@ -196,16 +195,30 @@ namespace MudbusMqttPublisher.Server.Services
             port.StopBits = settings.StopBits;
 			//port.DtrEnable = true;
 			//port.RtsEnable = true;
-			port.ReadTimeout = (int)settings.ReadTimeout.TotalMilliseconds;
-			port.WriteTimeout = (int)settings.WriteTimeout.TotalMilliseconds;
 			port.Open();
 
             using var master = modbusFactory.CreateRtuMaster(port);
+
+            master.Transport.Retries = 0;
 
 
 			while (!cancellationToken.IsCancellationRequested)
             {
 				logger.LogDebug($"Новый цикл работы с портом");
+
+                while (!port.IsOpen)
+                {
+					logger.LogWarning($"Порт {settings.SerialName} закрыт. Попытка открытия через {settings.ErrorSleepTimeout}");
+                    await Task.Delay(settings.ErrorSleepTimeout, cancellationToken);
+                    try
+                    {
+						port.Open();
+					}
+					catch (Exception ex)
+                    {
+                        logger.LogError(ex, $"Ошибка открытия порта {settings.SerialName}");
+                    }
+				}
 
 				var writeQueries = writeQueueService.GetQueries(settings.SerialName);
                 if (writeQueries.Length > 0)
@@ -235,9 +248,14 @@ namespace MudbusMqttPublisher.Server.Services
             }
         }
 
-        private async Task PerfomReadRequest(IModbusMaster modbus, ReadTaskRequest readTask)
+        private async Task<bool> PerfomReadRequest(IModbusMaster modbus, ReadTaskRequest readTask)
         {
-            logger.LogDebug("Запрошено чтение информации из Modbus");
+			modbus.Transport.Retries = readTask.Device.ReadRetryCount;
+			modbus.Transport.ReadTimeout = (int)readTask.Device.ReadTimeout.TotalMilliseconds;
+			modbus.Transport.WriteTimeout = (int)readTask.Device.WriteTimeout.TotalMilliseconds;
+
+
+			logger.LogDebug("Запрошено чтение информации из Modbus");
             var slaveAddress = readTask.Device.SlaveAddress;
             var startReg = (ushort)readTask.StartRegister;
             var regCount = (ushort)readTask.RegisterCount;
@@ -247,19 +265,28 @@ namespace MudbusMqttPublisher.Server.Services
             {
                 bool[] readResult;
 
-                switch (readTask.RegType)
+                try
                 {
-                    case RegisterType.Coil:
-                        readResult = await modbus.ReadCoilsAsync(slaveAddress, startReg, regCount);
-                        break;
-                    case RegisterType.DiscreteInput:
-                        readResult = await modbus.ReadInputsAsync(slaveAddress, startReg, regCount);
-                        break;
-                    default:
-                        throw new NotImplementedException();
-                }
+					switch (readTask.RegType)
+					{
+						case RegisterType.Coil:
+							readResult = await modbus.ReadCoilsAsync(slaveAddress, startReg, regCount);
+							break;
+						case RegisterType.DiscreteInput:
+							readResult = await modbus.ReadInputsAsync(slaveAddress, startReg, regCount);
+							break;
+						default:
+							throw new NotImplementedException();
+					}
+				}
+				catch (Exception ex)
+                {
+                    logger.LogError(ex, $"Ошибка чтения из устройства {slaveAddress}, тип рег. {readTask.RegType}, Номер рег.: {startReg}, Кол-во: {regCount}");
+					deviceMinMextReadTimes[slaveAddress] = DateTime.Now + readTask.Device.ErrorSleepTimeout;
+                    return false;
+				}
 
-                deviceLastReadTimes[slaveAddress] = DateTime.Now;
+                deviceMinMextReadTimes[slaveAddress] = DateTime.Now + readTask.Device.MinSleepTimeout;
 
                 for (int i = 0; i < readTask.RegisterCount; i++)
                 {
@@ -286,21 +313,31 @@ namespace MudbusMqttPublisher.Server.Services
             else
             {
                 ushort[] readResult;
-                switch (readTask.RegType)
+
+                try
                 {
-                    case RegisterType.HoldingRegister:
-                        readResult = await modbus.ReadHoldingRegistersAsync(slaveAddress, startReg, regCount);
-                        break;
-                    case RegisterType.InputRegister:
-                        readResult = await modbus.ReadInputRegistersAsync(slaveAddress, startReg, regCount);
-                        break;
-                    default:
-                        throw new NotImplementedException();
-                }
+					switch (readTask.RegType)
+					{
+						case RegisterType.HoldingRegister:
+							readResult = await modbus.ReadHoldingRegistersAsync(slaveAddress, startReg, regCount);
+							break;
+						case RegisterType.InputRegister:
+							readResult = await modbus.ReadInputRegistersAsync(slaveAddress, startReg, regCount);
+							break;
+						default:
+							throw new NotImplementedException();
+					}
+				}
+				catch (Exception ex)
+				{
+					logger.LogError(ex, $"Ошибка чтения из устройства {slaveAddress}, тип рег. {readTask.RegType}, Номер рег.: {startReg}, Кол-во: {regCount}");
+					deviceMinMextReadTimes[slaveAddress] = DateTime.Now + readTask.Device.ErrorSleepTimeout;
+					return false;
+				}
 
-                deviceLastReadTimes[slaveAddress] = DateTime.Now;
+				deviceMinMextReadTimes[slaveAddress] = DateTime.Now + readTask.Device.MinSleepTimeout;
 
-                int endRegister = readTask.StartRegister + readTask.RegisterCount;
+				int endRegister = readTask.StartRegister + readTask.RegisterCount;
 
                 for (int i = 0; i < readTask.RegisterCount; i++)
                 {
@@ -324,9 +361,11 @@ namespace MudbusMqttPublisher.Server.Services
                     }
                 }
             }
+
+            return true;
         }
 
-        private async Task PerfomWriteRequest(IModbusMaster modbus, WriteQuery[] queries)
+        private async Task<bool> PerfomWriteRequest(IModbusMaster modbus, WriteQuery[] queries)
         {
             (bool Found, DeviceSettings? Device, RegisterSettings? Register, IRegisterValue? Value) FindRegister(WriteQuery writeQuery)
             {
@@ -345,7 +384,9 @@ namespace MudbusMqttPublisher.Server.Services
                 return (false, null, null, null);
             }
 
-            var grouped = queries
+            bool result = true;
+
+			var grouped = queries
                 .Select(FindRegister)
                 .Where(r => r.Found)
                 .Select(r => new { Device = r.Device!, Register = r.Register!, Value = r.Value! })
@@ -354,10 +395,14 @@ namespace MudbusMqttPublisher.Server.Services
 
             foreach(var group in grouped)
             {
-                var groupArr = group.OrderBy(r => r.Register.Number).ToArray();
+				var groupArr = group.OrderBy(r => r.Register.Number).ToArray();
                 var startInd = 0;
                 var maxBatchSize = groupArr[0].Register.RegType.IsBitReg() ? groupArr[0].Device.MaxReadBit : groupArr[0].Device.MaxReadRegisters;
 
+				modbus.Transport.Retries = groupArr[0].Device.WriteRetryCount;
+				modbus.Transport.ReadTimeout = (int)groupArr[0].Device.ReadTimeout.TotalMilliseconds;
+				modbus.Transport.WriteTimeout = (int)groupArr[0].Device.WriteTimeout.TotalMilliseconds;
+				
                 while (startInd < groupArr.Length)
                 {
                     var endInd = startInd + 1;
@@ -390,8 +435,18 @@ namespace MudbusMqttPublisher.Server.Services
                             logger.LogDebug($"Запись в modbus {currReg.Register.Name} = {currReg.Value}");
 						}
 
-                        await modbus.WriteMultipleCoilsAsync(groupArr[0].Device.SlaveAddress, groupArr[startInd].Register.Number, data);
-                    }
+                        try
+                        {
+							await modbus.WriteMultipleCoilsAsync(groupArr[0].Device.SlaveAddress, groupArr[startInd].Register.Number, data);
+                            result = true;
+						}
+						catch (Exception ex)
+                        {
+							logger.LogError(ex, $"Ошибка записи в устройство {groupArr[0].Device.SlaveAddress}, тип рег. {firstRegister.RegType}, Номер рег.: {groupArr[startInd].Register}, Кол-во: {data.Length}");
+							result = false;
+						}
+
+					}
                     else
                     {
                         var firstRegister = groupArr[startInd].Register;
@@ -412,8 +467,17 @@ namespace MudbusMqttPublisher.Server.Services
 							logger.LogDebug($"Запись в modbus {currReg.Register.Name} = {currReg.Value}");
 						}
 
-                        await modbus.WriteMultipleRegistersAsync(groupArr[0].Device.SlaveAddress, groupArr[startInd].Register.Number, data);
-                    }
+                        try
+                        {
+							await modbus.WriteMultipleRegistersAsync(groupArr[0].Device.SlaveAddress, groupArr[startInd].Register.Number, data);
+							result = true;
+						}
+						catch (Exception ex)
+                        {
+							logger.LogError(ex, $"Ошибка записи в устройство {groupArr[0].Device.SlaveAddress}, тип рег. {firstRegister.RegType}, Номер рег.: {groupArr[startInd].Register}, Кол-во: {data.Length}");
+							result = false;
+						}
+					}
 
 					for (var regInd = startInd; regInd < endInd; regInd++)
 					{
@@ -424,6 +488,9 @@ namespace MudbusMqttPublisher.Server.Services
 					startInd = endInd;
                 }
             }
-        }
+
+            return result;
+
+		}
     }
 }

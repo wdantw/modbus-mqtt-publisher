@@ -41,8 +41,7 @@ namespace MudbusMqttPublisher.Server.Services.Configuration
                 stopBits: port.StopBits ?? DefaultSettings.StopBits,
                 minSleepTimeout: port.MinSleepTimeout ?? DefaultSettings.MinSleepTimeout(baudRate),
                 devices: port.Devices.Select(d => d.MapToSettings(port.Name, serialName, baudRate)).ToArray(),
-                readTimeout: port.ReadTimeout ?? DefaultSettings.DefaultPortTimeout,
-                writeTimeout: port.WriteTimeout ?? DefaultSettings.DefaultPortTimeout
+                errorSleepTimeout: port.ErrorSleepTimeout ?? DefaultSettings.DefaultErrorSleepTimeout
 				);
         }
 
@@ -59,8 +58,13 @@ namespace MudbusMqttPublisher.Server.Services.Configuration
                 maxReadRegisters: device.MaxReadRegisters ?? DefaultSettings.MaxReadRegisters,
                 maxReadBit: device.MaxReadBit ?? DefaultSettings.MaxReadBit,
                 minSleepTimeout: device.MinSleepTimeout ?? DefaultSettings.MinSleepTimeout(baudRate),
-                registers: device.Registers.Select(r => MapToSettings(r, MqttPath.CombineTopicPath(baseName, devNmae))).ToArray()
-                );
+                registers: device.Registers.Select(r => MapToSettings(r, MqttPath.CombineTopicPath(baseName, devNmae))).ToArray(),
+                errorSleepTimeout: device.ErrorSleepTimeout ?? DefaultSettings.DefaultErrorSleepTimeout,
+                readTimeout: device.ReadTimeout ?? DefaultSettings.DefaultPortTimeout,
+                writeTimeout: device.WriteTimeout ?? DefaultSettings.DefaultPortTimeout,
+                writeRetryCount: device.WriteRetryCount ?? DefaultSettings.DefaultWriteRetryCount,
+                readRetryCount: device.ReadRetryCount ?? DefaultSettings.DefaultReadRetryCount
+				);
         }
 
         public static RegisterSettings MapToSettings(this ModbusRegisterCompleted register, string baseName)

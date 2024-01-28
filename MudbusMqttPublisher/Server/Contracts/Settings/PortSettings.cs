@@ -12,8 +12,7 @@ namespace MudbusMqttPublisher.Server.Contracts.Settings
 			StopBits stopBits,
 			TimeSpan minSleepTimeout,
 			DeviceSettings[] devices,
-			TimeSpan readTimeout,
-			TimeSpan writeTimeout)
+			TimeSpan errorSleepTimeout)
 		{
 			SerialName = portName;
 			BaudRate = baudRate;
@@ -22,8 +21,7 @@ namespace MudbusMqttPublisher.Server.Contracts.Settings
 			StopBits = stopBits;
 			MinSleepTimeout = minSleepTimeout;
 			Devices = devices;
-			ReadTimeout = readTimeout;
-			WriteTimeout = writeTimeout;
+			ErrorSleepTimeout = errorSleepTimeout;
 		}
 
 		public string SerialName { get; }
@@ -33,9 +31,7 @@ namespace MudbusMqttPublisher.Server.Contracts.Settings
         public Parity Parity { get; }
         public StopBits StopBits { get; }
         public TimeSpan MinSleepTimeout { get; }
-        public TimeSpan ReadTimeout { get; }
-		public TimeSpan WriteTimeout { get; }
-
 		public DeviceSettings[] Devices { get; }
-    }
+		public TimeSpan ErrorSleepTimeout { get; }
+	}
 }

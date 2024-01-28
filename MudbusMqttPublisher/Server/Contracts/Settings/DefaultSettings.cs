@@ -27,5 +27,11 @@ namespace MudbusMqttPublisher.Server.Contracts.Settings
         public static string DecimalSeparator = ".";
 
         public static TimeSpan DefaultPortTimeout = TimeSpan.FromSeconds(1);
-    }
+
+		public static int DefaultWriteRetryCount = 3;
+
+		public static int DefaultReadRetryCount = 1;
+
+        public static TimeSpan DefaultErrorSleepTimeout = TimeSpan.FromMinutes(1);
+	}
 }

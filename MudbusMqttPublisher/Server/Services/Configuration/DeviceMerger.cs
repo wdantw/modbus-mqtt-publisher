@@ -13,7 +13,12 @@ namespace MudbusMqttPublisher.Server.Services.Configuration
             dest.MaxBitHole = overrides.MaxBitHole ?? dest.MaxBitHole;
             dest.MaxReadRegisters = overrides.MaxReadRegisters ?? dest.MaxReadRegisters;
             dest.MaxReadBit = overrides.MaxReadBit ?? dest.MaxReadBit;
-            return dest;
+			dest.ReadTimeout = overrides.ReadTimeout ?? dest.ReadTimeout;
+			dest.WriteTimeout = overrides.WriteTimeout ?? dest.WriteTimeout;
+			dest.WriteRetryCount = overrides.WriteRetryCount ?? dest.WriteRetryCount;
+			dest.ReadRetryCount = overrides.ReadRetryCount ?? dest.ReadRetryCount;
+			dest.ErrorSleepTimeout = overrides.ErrorSleepTimeout ?? dest.ErrorSleepTimeout;
+			return dest;
         }
 
         public static T ApplyRegisterModifires<T>(this T dest, IEnumerable<ModbusRegisterModifier> modifiers)
@@ -57,8 +62,7 @@ namespace MudbusMqttPublisher.Server.Services.Configuration
             dest.DataBits = overrides.DataBits ?? dest.DataBits;
             dest.Parity = overrides.Parity ?? dest.Parity;
 			dest.StopBits = overrides.StopBits ?? dest.StopBits;
-			dest.ReadTimeout = overrides.ReadTimeout ?? dest.ReadTimeout;
-			dest.WriteTimeout = overrides.WriteTimeout ?? dest.WriteTimeout;
+			
 			dest.Devices = overrides.Devices.Select(d =>
                 new ModbusDeviceComplete()
                     .MergeReadParameters(dest)

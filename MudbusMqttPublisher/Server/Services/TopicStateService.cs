@@ -13,14 +13,12 @@ namespace MudbusMqttPublisher.Server.Services
             public string Name { get; }
             public IRegisterValue Value { get; set; }
             public DateTime LastReadTime { get; set; }
-            public DateTime LastUpdateTime { get; set; }
 
             public TopickState(string name, IRegisterValue value, DateTime time)
             {
                 Name = name;
                 Value = value;
                 LastReadTime = time;
-                LastUpdateTime = time;
             }
 
             public bool UpdateCommand(TopickStateDto updateCommand, DateTime readTime)
@@ -33,9 +31,9 @@ namespace MudbusMqttPublisher.Server.Services
                 if (changed)
                 {
 					Value.UpdateFrom(updateCommand.Value);
-					LastReadTime = readTime;
-					LastUpdateTime = readTime;
 				}
+
+				LastReadTime = readTime;
 
 				return changed;
             }

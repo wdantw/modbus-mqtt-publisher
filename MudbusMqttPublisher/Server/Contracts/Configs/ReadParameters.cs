@@ -19,5 +19,15 @@
 
         // максимально допустимое количество однобитных регистров для чтения в одном запросе (
         public int? MaxReadBit { get; set; }
-    }
+
+		public TimeSpan? ReadTimeout { get; set; }
+
+		public TimeSpan? WriteTimeout { get; set; }
+
+		public int? WriteRetryCount { get; set; }
+
+		public int? ReadRetryCount { get; set; }
+
+		public TimeSpan? ErrorSleepTimeout { get; set; }
+	}
 }
