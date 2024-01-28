@@ -1,10 +1,9 @@
 ﻿using MudbusMqttPublisher.Server.Contracts.Configs;
-using System.Collections.ObjectModel;
 using System.Text.RegularExpressions;
 
 namespace MudbusMqttPublisher.Server.Services.Configuration
 {
-    public static class RegisterMerger
+	public static class RegisterMerger
     {
 
         public static void MergeRegisterCommonParams(this ModbusRegisterCommonParams dest, ModbusRegisterCommonParams overrides)

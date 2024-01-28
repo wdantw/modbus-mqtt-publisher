@@ -4,14 +4,11 @@ using System.IO.Ports;
 using NModbus.Serial;
 using MudbusMqttPublisher.Server.Common;
 using MudbusMqttPublisher.Server.Contracts;
-using System.Collections.Generic;
-using Microsoft.Extensions.Logging;
 using MudbusMqttPublisher.Server.Services.Types;
-using System.IO.Pipelines;
 
 namespace MudbusMqttPublisher.Server.Services
 {
-    public class ModbusQueueService : IQueueService
+	public class ModbusQueueService : IQueueService
     {
         public record ReadTaskRequest
         (

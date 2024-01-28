@@ -3,11 +3,10 @@ using MQTTnet;
 using Microsoft.Extensions.Options;
 using MudbusMqttPublisher.Server.Contracts.Configs;
 using MudbusMqttPublisher.Server.Common;
-using System.Text;
 
 namespace MudbusMqttPublisher.Server.Services
 {
-    public class MqttConsumer : BackgroundService
+	public class MqttConsumer : BackgroundService
     {
         private readonly IOptions<MqttOptions> options;
         private readonly IWriteQueueService writeQueueService;

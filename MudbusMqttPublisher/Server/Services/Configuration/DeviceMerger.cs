@@ -1,9 +1,8 @@
 ﻿using MudbusMqttPublisher.Server.Contracts.Configs;
-using System.Collections.ObjectModel;
 
 namespace MudbusMqttPublisher.Server.Services.Configuration
 {
-    public static class DeviceMerger
+	public static class DeviceMerger
     {
         public static T MergeReadParameters<T>(this T dest, ReadParameters overrides)
             where T : ReadParameters
