@@ -76,8 +76,17 @@ namespace MudbusMqttPublisher.Server.Services.Configuration
                 .Select(p => p.MapToSettings())
                 .ToArray();
 
-            if (restul.SelectMany(p => p.Devices).SelectMany(d => d.Registers.Select(r => r.Name)).GroupBy(r => r).Any(r => r.Take(2).Count() > 1))
-                throw new Exception("Имеются неуникальные имена регистров");
+			var dublicateNames = restul
+                .SelectMany(p => p.Devices)
+                .SelectMany(d => d.Registers.Select(r => r.Name))
+                .GroupBy(rname => rname)
+                .Where(r => r.Take(2).Count() > 1)
+                .Select(g => g.Key)
+                .ToArray();
+
+
+			if (restul.SelectMany(p => p.Devices).SelectMany(d => d.Registers.Select(r => r.Name)).GroupBy(r => r).Any(r => r.Take(2).Count() > 1))
+                throw new Exception($"Имеются неуникальные имена регистров: {string.Join(", ", dublicateNames)}");
 
             return restul;
         }

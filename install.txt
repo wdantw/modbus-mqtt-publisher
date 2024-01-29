@@ -9,3 +9,7 @@ apt install ./modbus-mqtt-publisher_1.0_armhf.deb
 
 systemctl status modbus-mqtt-publisher.service
 journalctl -u modbus-mqtt-publisher.service -n 100
+
+systemctl restart modbus-mqtt-publisher.service
+systemctl start modbus-mqtt-publisher.service
+systemctl stop modbus-mqtt-publisher.service

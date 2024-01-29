@@ -19,7 +19,8 @@ namespace MudbusMqttPublisher.Server.Services.Configuration
                 if (register.NumberStep.HasValue)
                     throw new Exception("Для явно указанного адреса регистра нельзя указывать NumberStep");
 
-                yield return ResolveSingleRegister(register, register.Number!.Value);
+				var name = register.Name ?? throw new Exception($"Не указано имя для регистра {register.Number!.Value}");
+				yield return ResolveSingleRegister(register, register.Number!.Value, name);
             }
             else if (isArray)
             {
@@ -28,6 +29,8 @@ namespace MudbusMqttPublisher.Server.Services.Configuration
                 if (step < regSize)
                     throw new Exception("Шаг в массиве не может быть меньше, чем размер регистра");
 
+				var name = register.Name ?? throw new Exception($"Не указано имя для массива {register.NumberStart!.Value}");
+				
                 for (int i = 0; i < register.NumberCount!.Value; i++)
                 {
                     var number = register.NumberStart!.Value + i * step;
@@ -35,7 +38,7 @@ namespace MudbusMqttPublisher.Server.Services.Configuration
                     if (number > ushort.MaxValue)
                         throw new Exception($"Некорректные параметры массива - адрес регистра превысили значение {ushort.MaxValue}");
 
-                    yield return ResolveSingleRegister(register, (ushort)number);
+                    yield return ResolveSingleRegister(register, (ushort)number, string.Format(name, i + 1));
                 }
             }
             else
@@ -60,8 +63,9 @@ namespace MudbusMqttPublisher.Server.Services.Configuration
                 if (colLength < minRowLength)
                     throw new Exception("Указан размер строки матрицы меньший чем минимальный с учетом размера регистра и шага");
 
+				var name = register.Name ?? throw new Exception($"Не указано имя для матрицы {register.NumberStart!.Value}");
 
-                for (int col = 0; col < register.ColCount.Value; col++)
+				for (int col = 0; col < register.ColCount.Value; col++)
                 {
                     for (int row = 0; row < register.RowCount.Value; row++)
                     {
@@ -70,7 +74,7 @@ namespace MudbusMqttPublisher.Server.Services.Configuration
                         if (number > ushort.MaxValue)
                             throw new Exception($"Некорректные параметры массива - адрес регистра превысили значение {ushort.MaxValue}");
 
-                        yield return ResolveSingleRegister(register, (ushort)number);
+                        yield return ResolveSingleRegister(register, (ushort)number, string.Format(name, col + 1, row + 1));
                     }
                 }
             }
@@ -106,13 +110,14 @@ namespace MudbusMqttPublisher.Server.Services.Configuration
             return (byte)size;
         }
 
-        private static ModbusRegisterCompleted ResolveSingleRegister(ModbusRegisterCompleted config, ushort number)
+        private static ModbusRegisterCompleted ResolveSingleRegister(ModbusRegisterCompleted config, ushort number, string name)
         {
             var dest = new ModbusRegisterCompleted();
             dest.MergeRegisterCommonParams(config);
             dest.RegType = config.RegType ?? dest.RegType;
             dest.Length = config.Length ?? dest.Length;
             dest.Number = number;
+            dest.Name = name;
 
             return dest;
         }
