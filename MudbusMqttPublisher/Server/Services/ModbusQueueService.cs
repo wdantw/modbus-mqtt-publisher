@@ -193,11 +193,18 @@ namespace MudbusMqttPublisher.Server.Services
             port.DataBits = settings.DataBits;
             port.Parity = settings.Parity;
             port.StopBits = settings.StopBits;
-			//port.DtrEnable = true;
-			//port.RtsEnable = true;
-			port.Open();
+            //port.DtrEnable = true;
+            //port.RtsEnable = true;
+            try
+            {
+				port.Open();
+			}
+			catch (Exception ex)
+            {
+				logger.LogError(ex, $"Ошибка открытия порта {settings.SerialName}");
+			}
 
-            using var master = modbusFactory.CreateRtuMaster(port);
+			using var master = modbusFactory.CreateRtuMaster(port);
 
             master.Transport.Retries = 0;
 

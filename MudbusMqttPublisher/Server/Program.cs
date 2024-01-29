@@ -13,9 +13,14 @@ namespace MudbusMqttPublisher
         {
             var builder = WebApplication.CreateBuilder(args);
 
-            // Add services to the container.
+            var userConfigFile = Environment.GetEnvironmentVariable("MODBUS_MQTT_PUBLISHER_USERCONFIG");
 
-            builder.Services.AddControllersWithViews();
+			builder.Configuration
+                .AddJsonFile(userConfigFile);
+
+			// Add services to the container.
+
+			builder.Services.AddControllersWithViews();
             builder.Services.AddRazorPages();
             builder.Services.AddSwaggerGen();
 
