@@ -14,7 +14,7 @@ namespace MudbusMqttPublisher.Server.Services.Types
 
 		public void FromModbus(ArraySegment<ushort> data)
 		{
-			_value = Encoding.ASCII.GetString(TypeUtils.ToBytes(data)) ?? string.Empty;
+			_value = Encoding.ASCII.GetString(TypeUtils.ToBytes(data).Where(b => b != 0).ToArray()) ?? string.Empty;
 		}
 
 		public void FromModbus(ArraySegment<bool> data)

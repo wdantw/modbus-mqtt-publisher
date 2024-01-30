@@ -28,32 +28,44 @@ namespace MudbusMqttPublisher.Server.Services.Configuration
             return dest;
         }
 
-		public static ModbusDeviceCompleteBase MergeModbusDeviceBase(this ModbusDeviceCompleteBase dest, ModbusDeviceConfigBase overrides, Dictionary<string, ITypeResolver> typeMap)
+		public static ModbusDeviceCompleteBase MergeModbusDeviceBase(
+            this ModbusDeviceCompleteBase dest,
+            ModbusDeviceConfigBase overrides,
+            Dictionary<string, ITypeResolver> typeMap,
+            IEnumerable<ModbusRegisterModifier> globalModifiers)
         {
             if (overrides.ParentTypeName != null)
             {
                 if (!typeMap.TryGetValue(overrides.ParentTypeName, out var parentResolver))
                     throw new Exception($"Не найден родительский тип устройства {overrides.ParentTypeName}");
 
-                parentResolver.Resolve(dest, typeMap);
+                parentResolver.Resolve(dest, typeMap, globalModifiers);
             }
 
             dest.MergeReadParameters(overrides);
             dest.Name = overrides.Name ?? dest.Name;
             dest.ParentTypeName = overrides.ParentTypeName ?? dest.ParentTypeName;
-            dest.Registers.MergeRegisters(overrides.Registers, overrides.Modifiers);
+            dest.Registers.MergeRegisters(overrides.Registers, overrides.Modifiers, globalModifiers);
 
             return dest;
         }
 
-        public static ModbusDeviceComplete MergeDevice(this ModbusDeviceComplete dest, ModbusDeviceConfig overrides, Dictionary<string, ITypeResolver> typeMap)
+        public static ModbusDeviceComplete MergeDevice(
+            this ModbusDeviceComplete dest,
+            ModbusDeviceConfig overrides,
+            Dictionary<string, ITypeResolver> typeMap,
+            IEnumerable<ModbusRegisterModifier> globalModifiers)
         {
-            dest.MergeModbusDeviceBase(overrides, typeMap);
+            dest.MergeModbusDeviceBase(overrides, typeMap, globalModifiers);
             dest.SlaveAddress = overrides.SlaveAddress;
             return dest;
         }
 
-        public static ModbusPortComplete MergePort(this ModbusPortComplete dest, ModbusPortConfig overrides, Dictionary<string, ITypeResolver> typeMap, IEnumerable<ModbusRegisterModifier> globalModifiers)
+        public static ModbusPortComplete MergePort(
+            this ModbusPortComplete dest,
+            ModbusPortConfig overrides,
+            Dictionary<string, ITypeResolver> typeMap,
+            IEnumerable<ModbusRegisterModifier> globalModifiers)
         {
             dest.MergeReadParameters(overrides);
             dest.Name = overrides.Name ?? dest.Name;
@@ -66,9 +78,8 @@ namespace MudbusMqttPublisher.Server.Services.Configuration
 			dest.Devices = overrides.Devices.Select(d =>
                 new ModbusDeviceComplete()
                     .MergeReadParameters(dest)
-                    .MergeDevice(d, typeMap)
-                    .ApplyRegisterModifires(overrides.Modifiers)
-                    .ApplyRegisterModifires(globalModifiers)
+                    .MergeDevice(d, typeMap, globalModifiers)
+					.ApplyRegisterModifires(overrides.Modifiers)
 			).ToArray();
             return dest;
         }

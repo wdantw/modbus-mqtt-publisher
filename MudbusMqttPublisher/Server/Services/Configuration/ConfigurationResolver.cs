@@ -6,7 +6,7 @@ namespace MudbusMqttPublisher.Server.Services.Configuration
 {
     public interface ITypeResolver
     {
-        void Resolve(ModbusDeviceCompleteBase dest, Dictionary<string, ITypeResolver> typeMap);
+        void Resolve(ModbusDeviceCompleteBase dest, Dictionary<string, ITypeResolver> typeMap, IEnumerable<ModbusRegisterModifier> globalModifiers);
     }
 
     public class ConfigurationResolver : IConfigurationResolver
@@ -21,7 +21,7 @@ namespace MudbusMqttPublisher.Server.Services.Configuration
                 this.typeConfig = typeConfig;
             }
 
-            public void Resolve(ModbusDeviceCompleteBase dest, Dictionary<string, ITypeResolver> typeMap)
+            public void Resolve(ModbusDeviceCompleteBase dest, Dictionary<string, ITypeResolver> typeMap, IEnumerable<ModbusRegisterModifier> globalModifiers)
             {
                 if (isInResolving)
                     throw new Exception("Встретилось рекурсивное определение типа");
@@ -29,7 +29,7 @@ namespace MudbusMqttPublisher.Server.Services.Configuration
                 try
                 {
                     isInResolving = true;
-                    dest.MergeModbusDeviceBase(typeConfig, typeMap);
+                    dest.MergeModbusDeviceBase(typeConfig, typeMap, globalModifiers);
 
                 }
                 finally

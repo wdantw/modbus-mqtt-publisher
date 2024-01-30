@@ -230,7 +230,7 @@ namespace MudbusMqttPublisher.Server.Services
 				var writeQueries = writeQueueService.GetQueries(settings.SerialName);
                 if (writeQueries.Length > 0)
                 {
-                    await PerfomWriteRequest(master, writeQueries);
+                    await PerfomWriteRequest(master, writeQueries, port);
                     writeQueueService.AcceptDequeued(settings.SerialName);
                     await Task.Delay(settings.MinSleepTimeout, cancellationToken);
                     continue;
@@ -250,10 +250,25 @@ namespace MudbusMqttPublisher.Server.Services
                     continue;
                 }
 
-                await PerfomReadRequest(master, readTaskRequest!);
+				ReadFromPortAll(port);
+				await PerfomReadRequest(master, readTaskRequest!);
                 await Task.Delay(settings.MinSleepTimeout, cancellationToken);
             }
         }
+
+        public void ReadFromPortAll(SerialPort port)
+        {
+			if (port.BytesToRead > 0)
+            {
+                var buffer = new byte[port.BytesToRead];
+                var readed = port.Read(buffer, 0, buffer.Length);
+                if (readed > 0)
+                {
+                    logger.LogTrace($"Прочитан мусор из порта ({readed} байт): {BitConverter.ToString(buffer, 0, readed)}");
+                }
+            }
+
+		}
 
         private async Task<bool> PerfomReadRequest(IModbusMaster modbus, ReadTaskRequest readTask)
         {
@@ -372,7 +387,7 @@ namespace MudbusMqttPublisher.Server.Services
             return true;
         }
 
-        private async Task<bool> PerfomWriteRequest(IModbusMaster modbus, WriteQuery[] queries)
+        private async Task<bool> PerfomWriteRequest(IModbusMaster modbus, WriteQuery[] queries, SerialPort port)
         {
             (bool Found, DeviceSettings? Device, RegisterSettings? Register, IRegisterValue? Value) FindRegister(WriteQuery writeQuery)
             {
@@ -442,7 +457,8 @@ namespace MudbusMqttPublisher.Server.Services
                             logger.LogDebug($"Запись в modbus {currReg.Register.Name} = {currReg.Value}");
 						}
 
-                        try
+						ReadFromPortAll(port);
+						try
                         {
 							await modbus.WriteMultipleCoilsAsync(groupArr[0].Device.SlaveAddress, groupArr[startInd].Register.Number, data);
                             result = true;
@@ -474,7 +490,8 @@ namespace MudbusMqttPublisher.Server.Services
 							logger.LogDebug($"Запись в modbus {currReg.Register.Name} = {currReg.Value}");
 						}
 
-                        try
+						ReadFromPortAll(port);
+						try
                         {
 							await modbus.WriteMultipleRegistersAsync(groupArr[0].Device.SlaveAddress, groupArr[startInd].Register.Number, data);
 							result = true;

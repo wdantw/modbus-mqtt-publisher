@@ -62,11 +62,12 @@ namespace MudbusMqttPublisher.Server.Services.Configuration
 		public static List<ModbusRegisterCompleted> MergeRegisters(
             this List<ModbusRegisterCompleted> dest,
             ModbusRegisterTemplate[] templates,
-			IEnumerable<ModbusRegisterModifier> modifiers
-            )
+			IEnumerable<ModbusRegisterModifier> modifiers,
+            IEnumerable<ModbusRegisterModifier> globalModifiers
+			)
         {
             foreach (var newReg in templates.SelectMany(t => t.ResolveRegisters()))
-                dest.Add(newReg);
+                dest.Add(newReg.ApplyRegisterModifiers(globalModifiers));
 
             dest.ApplyRegistersModifiers(modifiers);
 

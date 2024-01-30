@@ -48,7 +48,7 @@
         {
           "SlaveAddress": 163,
           "Name" : "Relays/Rel4/",
-          "v": "WB-MR6C v.2"
+          "ParentTypeName": "WB-MR6C v.2"
         },
         {
           "SlaveAddress": 93,

@@ -5,7 +5,7 @@ chmod +x dotnet-install.sh
 ./dotnet-install.sh --runtime aspnetcore --channel 6.0 --install-dir /usr/share/dotnet
 rm ./dotnet-install.sh
 ln -s /usr/share/dotnet/dotnet /usr/bin/dotnet
-apt install ./modbus-mqtt-publisher_1.0_armhf.deb
+apt install ./modbus-mqtt-publisher_1.0.6_armhf.deb
 
 systemctl status modbus-mqtt-publisher.service
 journalctl -u modbus-mqtt-publisher.service -n 100
@@ -13,3 +13,11 @@ journalctl -u modbus-mqtt-publisher.service -n 100
 systemctl restart modbus-mqtt-publisher.service
 systemctl start modbus-mqtt-publisher.service
 systemctl stop modbus-mqtt-publisher.service
+
+
+systemctl stop modbus-mqtt-publisher.service
+journalctl --flush --rotate --vacuum-time=1s  -u modbus-mqtt-publisher.service
+service mosquitto restart
+systemctl start modbus-mqtt-publisher.service
+
+journalctl -u modbus-mqtt-publisher.service > log.txt
