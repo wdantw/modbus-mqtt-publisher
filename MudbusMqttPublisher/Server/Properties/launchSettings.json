@@ -8,7 +8,7 @@
       }
     },
     "profiles": {
-      "MudbusMqttPublisher.Server": {
+      "Local": {
         "commandName": "Project",
         "dotnetRunMessages": true,
         //"launchBrowser": true,
@@ -19,13 +19,16 @@
           "MODBUS_MQTT_PUBLISHER_USERCONFIG": "modbus-mqtt-publisher-dev.json"
         }
       },
-      "IIS Express": {
-        "commandName": "IISExpress",
-        "launchBrowser": true,
+      "LocalFakeModbus": {
+        "commandName": "Project",
+        "dotnetRunMessages": true,
+        //"launchBrowser": true,
         "inspectUri": "{wsProtocol}://{url.hostname}:{url.port}/_framework/debug/ws-proxy?browser={browserInspectUri}",
+        "applicationUrl": "http://localhost:5154",
         "environmentVariables": {
           "ASPNETCORE_ENVIRONMENT": "Development",
-          "MODBUS_MQTT_PUBLISHER_USERCONFIG": "modbus-mqtt-publisher-dev.json"
+          "MODBUS_MQTT_PUBLISHER_FAKE_MODBUS": "true",
+          "MODBUS_MQTT_PUBLISHER_USERCONFIG": "modbus-mqtt-publisher-dev-fakemodbus.json"
         }
       }
     }

@@ -1,0 +1,78 @@
+{
+  "Logging": {
+    "LogLevel": {
+      //"Default": "Trace"
+    }
+  },
+
+  "MqttOptions" :  {
+    "TcpAddress":  "192.168.50.45"
+  },
+
+   "ModbusPorts": [
+    {
+      "SerialName": "COM3",
+      "BaudRate": 9600,
+      "DataBits": 8,
+      "Parity": "None",
+      "StopBits": "One",
+      "AllowWbEvents": false,
+      "Devices": [
+        {
+          "SlaveAddress": 1,
+          "Name": "Sensors/SHT20_1/",
+          "ParentTypeName":  "SHT20"
+        }
+      ],
+      "ErrorSleepTimeout": "00:00:05.000"
+    },
+    {
+      "SerialName": "/dev/ttyUSB0",
+      "BaudRate": 115200,
+      "DataBits": 8,
+      "Parity": "None",
+      "StopBits": "Two",
+      "AllowWbEvents":  true,
+
+      "Devices": [
+        {
+          "SlaveAddress": 179,
+          "Name" : "Relays/Rel1/",
+          "ParentTypeName": "WB-MR6C v.2"
+        },
+        {
+          "SlaveAddress": 166,
+          "Name" : "Relays/Rel2/",
+          "ParentTypeName": "WB-MR6C v.2"
+        },
+        {
+          "SlaveAddress": 167,
+          "Name" : "Relays/Rel3/",
+          "ParentTypeName": "WB-MR6C v.2"
+        },
+        {
+          "SlaveAddress": 163,
+          "Name" : "Relays/Rel4/",
+          "ParentTypeName": "WB-MR6C v.2"
+        },
+        {
+          "SlaveAddress": 93,
+          "ParentTypeName": "WB-MRPS6/S",
+          "Name" : "Relays/Dop1/"
+        },
+        {
+          "SlaveAddress": 77,
+          "ParentTypeName": "WB-MR6CU v.2",
+          "Name" : "Relays/Floor/"
+        }
+      ]
+    }
+  ],
+
+  "ModbusModifiers": [
+    { "Tags": "sensors", "ReadPeriod": "00:00:00.005" },
+    { "Tags": "relay", "ReadPeriod": "00:00:30.000" },
+    { "Tags": "button", "ReadPeriod": "00:00:00.005" }
+  ]
+
+}

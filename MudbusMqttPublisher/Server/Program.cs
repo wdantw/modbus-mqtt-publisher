@@ -10,6 +10,18 @@ namespace MudbusMqttPublisher
 {
     public class Program
     {
+        private static bool IsFakeModbus()
+        {
+            var isFakeModbusEnv = Environment.GetEnvironmentVariable("MODBUS_MQTT_PUBLISHER_FAKE_MODBUS");
+            
+            if (string.IsNullOrWhiteSpace(isFakeModbusEnv))
+                return false;
+
+            isFakeModbusEnv = isFakeModbusEnv.ToLower();
+
+            return isFakeModbusEnv == "true";
+        }
+
         public static void Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
@@ -34,7 +46,10 @@ namespace MudbusMqttPublisher
             builder.Services.AddTransient<ModbusLogger>();
             builder.Services.AddTransient<IConfigurationResolver, ConfigurationResolver>();
 			builder.Services.AddTransient<IRegisterValueFactory, RegisterValueFactory>();
-			builder.Services.AddTransient<IModbusClientFactory, ModbusClientFactory>();
+            if (IsFakeModbus())
+                builder.Services.AddTransient<IModbusClientFactory, FakeFactory>();
+            else
+				builder.Services.AddTransient<IModbusClientFactory, ModbusClientFactory>();
 			builder.Services.AddSingleton<IModbusFactory>(p => new ModbusFactory(null, true, p.GetRequiredService<ModbusLogger>()));
             builder.Services.AddSingleton<ITopicStateService, TopicStateService>();
             builder.Services.AddSingleton<MqttFactory>();
