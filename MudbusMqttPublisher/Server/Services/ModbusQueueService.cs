@@ -7,6 +7,8 @@ using MudbusMqttPublisher.Server.Contracts;
 using MudbusMqttPublisher.Server.Services.Types;
 using MudbusMqttPublisher.Server.Services.Modbus;
 using System.IO.Pipelines;
+using System.Globalization;
+using System;
 
 namespace MudbusMqttPublisher.Server.Services
 {
@@ -187,31 +189,103 @@ namespace MudbusMqttPublisher.Server.Services
             return (null, new ReadTaskRequest(first.Device, first.Register.RegType, startNumber, endNumber - startNumber));
         }
 
-        public async Task Run(CancellationToken cancellationToken)
+        private void PublishValue(string topic, string value)
+        {
+			topickStateService.UpdateTopicState(new TopickStateDto(
+				topic,
+				new StringPublishedValue(value),
+				DateTime.Now
+				));
+
+			mqttPublisher.PublishTopic(topic);
+		}
+
+		private void PublishValue(string topic, double value)
+        {
+			var format = (NumberFormatInfo)NumberFormatInfo.CurrentInfo.Clone();
+			format.NumberDecimalSeparator = DefaultSettings.DecimalSeparator;
+            PublishValue(topic, value.ToString(format));
+		}
+
+		private void PublishPrifilerData(Profiler profiler)
+        {
+            profiler.Stop(out var globalTime, out var methodsTimes);
+
+            var serName = settings.SerialName;
+            if (serName.StartsWith(MqttPath.TopicPathDelimeter))
+                serName = serName[1..];
+
+			var basePath = MqttPath.CombineTopicPath("ModbusMqttPublisher", serName);
+
+			var format = (NumberFormatInfo)NumberFormatInfo.CurrentInfo.Clone();
+			format.NumberDecimalSeparator = DefaultSettings.DecimalSeparator;
+
+            PublishValue(MqttPath.CombineTopicPath(basePath, $"global_time"), globalTime.ToString());
+
+			var otherTime = globalTime;
+
+			foreach (var method in methodsTimes)
+            {
+                PublishValue(MqttPath.CombineTopicPath(basePath, $"{method.Key}_percent"), method.Value.TotalMilliseconds / globalTime.TotalMilliseconds * 100.0);
+                PublishValue(MqttPath.CombineTopicPath(basePath, $"{method.Key}_time"), method.Value.ToString());
+                otherTime = otherTime - method.Value;
+			}
+
+            PublishValue(MqttPath.CombineTopicPath(basePath, $"other_percent"), otherTime.TotalMilliseconds / globalTime.TotalMilliseconds * 100.0);
+            PublishValue(MqttPath.CombineTopicPath(basePath, $"other_time"), otherTime.ToString());
+
+			PublishValue(MqttPath.CombineTopicPath(basePath, $"stat_readComands"), statReadCommands.ToString());
+			PublishValue(MqttPath.CombineTopicPath(basePath, $"stat_WriteCommands"), statWriteCommands.ToString());
+			PublishValue(MqttPath.CombineTopicPath(basePath, $"stat_ReadDataBytes"), statReadDataBytes.ToString());
+			PublishValue(MqttPath.CombineTopicPath(basePath, $"stat_WriteDataBytes"), statWriteDataBytes.ToString());
+
+			PublishValue(MqttPath.CombineTopicPath(basePath, $"stat_in_sec_readComands"), statReadCommands * 1.0 / globalTime.TotalSeconds);
+			PublishValue(MqttPath.CombineTopicPath(basePath, $"stat_in_sec_WriteCommands"), statWriteCommands * 1.0 / globalTime.TotalSeconds);
+			PublishValue(MqttPath.CombineTopicPath(basePath, $"stat_in_sec_ReadDataBytes"), statReadDataBytes * 1.0 / globalTime.TotalSeconds);
+			PublishValue(MqttPath.CombineTopicPath(basePath, $"stat_in_sec_WriteDataBytes"), statWriteDataBytes * 1.0 / globalTime.TotalSeconds);
+
+			statReadCommands = 0;
+			statWriteCommands = 0;
+			statReadDataBytes = 0;
+			statWriteDataBytes = 0;
+			profiler.Start();
+		}
+
+		int statReadCommands = 0;
+		int statWriteCommands = 0;
+		int statReadDataBytes = 0;
+		int statWriteDataBytes = 0;
+
+		public async Task Run(CancellationToken cancellationToken)
         {
             using var modbusClient = modbusFactory.Create(settings);
 
+            var profiler = new Profiler();
+			profiler.Start();
 			while (!cancellationToken.IsCancellationRequested)
             {
 				logger.LogDebug($"Новый цикл работы с портом");
 
-                await modbusClient.CheckConnection(settings.ErrorSleepTimeout, cancellationToken);
+                if (profiler.Elapsed > TimeSpan.FromSeconds(5))
+                    PublishPrifilerData(profiler);
 
-				var writeQueries = writeQueueService.GetQueries(settings.SerialName);
+				await modbusClient.CheckConnection(settings.ErrorSleepTimeout, cancellationToken);
+
+				var writeQueries = profiler.WrapMethod("get_writes", () => writeQueueService.GetQueries(settings.SerialName));
                 if (writeQueries.Length > 0)
                 {
-                    await PerfomWriteRequest(modbusClient, writeQueries);
+                    await profiler.WrapMethodAsync("write", () => PerfomWriteRequest(modbusClient, writeQueries));
                     writeQueueService.AcceptDequeued(settings.SerialName);
                     await Task.Delay(settings.MinSleepTimeout, cancellationToken);
                     continue;
                 }
 
-                (var waitForTime, var readTaskRequest) = GetReadTask();
+                (var waitForTime, var readTaskRequest) = profiler.WrapMethod("get_reads", GetReadTask);
                 
                 if (waitForTime.HasValue)
                 {
                     var delay = waitForTime.Value - DateTime.Now;
-                    if (delay > TimeSpan.FromHours(1)) delay = TimeSpan.FromHours(1);
+                    if (delay > TimeSpan.FromSeconds(5)) delay = TimeSpan.FromHours(5);
                     // чтоб не ломалось во время отладки или лагов
                     if (delay < TimeSpan.Zero) continue;
                     logger.LogDebug($"Ожидание следующего чтения {delay}");
@@ -220,7 +294,7 @@ namespace MudbusMqttPublisher.Server.Services
                     continue;
                 }
 
-				await PerfomReadRequest(modbusClient, readTaskRequest!);
+                await profiler.WrapMethodAsync("read", () => PerfomReadRequest(modbusClient, readTaskRequest!));
                 await Task.Delay(settings.MinSleepTimeout, cancellationToken);
             }
         }
@@ -235,7 +309,10 @@ namespace MudbusMqttPublisher.Server.Services
 
                 try
                 {
-                    readResult = await modbus.ReadBitRegistersAsync(new ModbusRequest(
+                    statReadCommands++;
+                    statReadDataBytes += readTask.RegisterCount / 8 + (readTask.RegisterCount % 8 > 0 ? 1 : 1);
+
+					readResult = await modbus.ReadBitRegistersAsync(new ModbusRequest(
 						readTask.Device.SlaveAddress,
 						(ushort)readTask.StartRegister,
 						(ushort)readTask.RegisterCount,
@@ -282,6 +359,9 @@ namespace MudbusMqttPublisher.Server.Services
 
                 try
                 {
+					statReadCommands++;
+					statReadDataBytes += readTask.RegisterCount * 2;
+
 					readResult = await modbus.ReadShortRegistersAsync(new ModbusRequest(
 						readTask.Device.SlaveAddress,
 						(ushort)readTask.StartRegister,
@@ -391,6 +471,8 @@ namespace MudbusMqttPublisher.Server.Services
 
 						try
                         {
+                            statWriteCommands++;
+                            statWriteDataBytes += dataLength / 8 + (dataLength % 8 > 0 ? 1 : 1);
 							await modbus.WriteBitRegistersAsync(new ModbusRequest(
 								groupArr[0].Device.SlaveAddress,
 								groupArr[startInd].Register.Number,
@@ -426,6 +508,9 @@ namespace MudbusMqttPublisher.Server.Services
 
 						try
                         {
+							statWriteCommands++;
+							statWriteDataBytes += dataLength * 2;
+
 							await modbus.WriteShortRegistersAsync(new ModbusRequest(
 								groupArr[0].Device.SlaveAddress,
 								groupArr[startInd].Register.Number,

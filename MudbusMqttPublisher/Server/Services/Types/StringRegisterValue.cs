@@ -6,7 +6,7 @@ namespace MudbusMqttPublisher.Server.Services.Types
 	{
 		string _value = string.Empty;
 
-		public bool Equals(IRegisterValue? other)
+		public bool Equals(IPublishValue? other)
 		{
 			var commpared = other as StringRegisterValue;
 			return string.Equals(_value, commpared?._value ?? string.Empty);
@@ -56,7 +56,7 @@ namespace MudbusMqttPublisher.Server.Services.Types
 
 		public override string ToString() => _value;
 
-		public void UpdateFrom(IRegisterValue value)
+		public void UpdateFrom(IPublishValue value)
 		{
 			_value = ((StringRegisterValue)value)._value;
 		}

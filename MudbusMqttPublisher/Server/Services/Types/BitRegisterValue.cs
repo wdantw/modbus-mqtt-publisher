@@ -6,7 +6,7 @@ namespace MudbusMqttPublisher.Server.Services.Types
 	{
 		private bool _value;
 
-		public bool Equals(IRegisterValue? other)
+		public bool Equals(IPublishValue? other)
 		{
 			var commpared = other as BitRegisterValue;
 			return commpared != null && _value == commpared._value;
@@ -48,7 +48,7 @@ namespace MudbusMqttPublisher.Server.Services.Types
 
 		public override string ToString() => Convert.ToString(_value);
 
-		public void UpdateFrom(IRegisterValue value)
+		public void UpdateFrom(IPublishValue value)
 		{
 			_value = ((BitRegisterValue)value)._value;
 		}

@@ -14,7 +14,7 @@ namespace MudbusMqttPublisher.Server.Services.Types
 		public abstract double ToDouble();
 		public abstract void FromDouble(double value);
 
-		public bool Equals(IRegisterValue? other)
+		public bool Equals(IPublishValue? other)
 		{
 			var commpared = other as NumericRegisterValueBase<T>;
 			return commpared != null && _value.Equals(commpared._value);
@@ -52,7 +52,7 @@ namespace MudbusMqttPublisher.Server.Services.Types
 
 		public override string ToString() => ValueToString(_value);
 
-		public void UpdateFrom(IRegisterValue value)
+		public void UpdateFrom(IPublishValue value)
 		{
 			_value = ((NumericRegisterValueBase<T>)value)._value;
 		}

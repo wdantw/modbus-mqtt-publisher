@@ -45,7 +45,7 @@ namespace MudbusMqttPublisher.Server.Services.Types
 			_formatProvider = format;
 		}
 
-		public bool Equals(IRegisterValue? other)
+		public bool Equals(IPublishValue? other)
 		{
 			var otherValue = other as DoubleRegisterValue;
 			
@@ -110,7 +110,7 @@ namespace MudbusMqttPublisher.Server.Services.Types
 
 		public override string ToString() => Convert.ToString(_value, _formatProvider);
 
-		public void UpdateFrom(IRegisterValue value)
+		public void UpdateFrom(IPublishValue value)
 		{
 			var newValue = ((DoubleRegisterValue)value)._value;
 			if (newValue > _value)

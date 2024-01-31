@@ -5,7 +5,7 @@ namespace MudbusMqttPublisher.Server.Contracts
     public record TopickStateDto
     (
         string TopickName,
-        IRegisterValue Value,
+		IPublishValue Value,
         DateTime ReadTime
     );
 }

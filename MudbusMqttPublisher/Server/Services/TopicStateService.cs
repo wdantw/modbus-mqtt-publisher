@@ -11,10 +11,10 @@ namespace MudbusMqttPublisher.Server.Services
         private class TopickState
         {
             public string Name { get; }
-            public IRegisterValue Value { get; set; }
+            public IPublishValue Value { get; set; }
             public DateTime LastReadTime { get; set; }
 
-            public TopickState(string name, IRegisterValue value, DateTime time)
+            public TopickState(string name, IPublishValue value, DateTime time)
             {
                 Name = name;
                 Value = value;
