@@ -2,6 +2,7 @@ using MQTTnet;
 using MudbusMqttPublisher.Server.Contracts.Configs;
 using MudbusMqttPublisher.Server.Services;
 using MudbusMqttPublisher.Server.Services.Configuration;
+using MudbusMqttPublisher.Server.Services.Modbus;
 using MudbusMqttPublisher.Server.Services.Types;
 using NModbus;
 
@@ -33,6 +34,7 @@ namespace MudbusMqttPublisher
             builder.Services.AddTransient<ModbusLogger>();
             builder.Services.AddTransient<IConfigurationResolver, ConfigurationResolver>();
 			builder.Services.AddTransient<IRegisterValueFactory, RegisterValueFactory>();
+			builder.Services.AddTransient<IModbusClientFactory, ModbusClientFactory>();
 			builder.Services.AddSingleton<IModbusFactory>(p => new ModbusFactory(null, true, p.GetRequiredService<ModbusLogger>()));
             builder.Services.AddSingleton<ITopicStateService, TopicStateService>();
             builder.Services.AddSingleton<MqttFactory>();

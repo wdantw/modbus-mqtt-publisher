@@ -5,6 +5,8 @@ using NModbus.Serial;
 using MudbusMqttPublisher.Server.Common;
 using MudbusMqttPublisher.Server.Contracts;
 using MudbusMqttPublisher.Server.Services.Types;
+using MudbusMqttPublisher.Server.Services.Modbus;
+using System.IO.Pipelines;
 
 namespace MudbusMqttPublisher.Server.Services
 {
@@ -20,7 +22,7 @@ namespace MudbusMqttPublisher.Server.Services
 
         private readonly PortSettings settings;
         private readonly ILogger<ModbusQueueService> logger;
-        private readonly IModbusFactory modbusFactory;
+        private readonly IModbusClientFactory modbusFactory;
         private readonly ITopicStateService topickStateService;
         private readonly IMqttPublisher mqttPublisher;
         private readonly IWriteQueueService writeQueueService;
@@ -31,7 +33,7 @@ namespace MudbusMqttPublisher.Server.Services
 		public ModbusQueueService(
 			PortSettings settings,
 			ILogger<ModbusQueueService> logger,
-			IModbusFactory modbusFactory,
+			IModbusClientFactory modbusFactory,
 			ITopicStateService topickStateService,
 			IMqttPublisher mqttPublisher,
 			IWriteQueueService writeQueueService,
@@ -187,50 +189,18 @@ namespace MudbusMqttPublisher.Server.Services
 
         public async Task Run(CancellationToken cancellationToken)
         {
-            using var port = new SerialPort(settings.SerialName);
-
-            port.BaudRate = settings.BaudRate;
-            port.DataBits = settings.DataBits;
-            port.Parity = settings.Parity;
-            port.StopBits = settings.StopBits;
-            //port.DtrEnable = true;
-            //port.RtsEnable = true;
-            try
-            {
-				port.Open();
-			}
-			catch (Exception ex)
-            {
-				logger.LogError(ex, $"Ошибка открытия порта {settings.SerialName}");
-			}
-
-			using var master = modbusFactory.CreateRtuMaster(port);
-
-            master.Transport.Retries = 0;
-
+            using var modbusClient = modbusFactory.Create(settings);
 
 			while (!cancellationToken.IsCancellationRequested)
             {
 				logger.LogDebug($"Новый цикл работы с портом");
 
-                while (!port.IsOpen)
-                {
-					logger.LogWarning($"Порт {settings.SerialName} закрыт. Попытка открытия через {settings.ErrorSleepTimeout}");
-                    await Task.Delay(settings.ErrorSleepTimeout, cancellationToken);
-                    try
-                    {
-						port.Open();
-					}
-					catch (Exception ex)
-                    {
-                        logger.LogError(ex, $"Ошибка открытия порта {settings.SerialName}");
-                    }
-				}
+                await modbusClient.CheckConnection(settings.ErrorSleepTimeout, cancellationToken);
 
 				var writeQueries = writeQueueService.GetQueries(settings.SerialName);
                 if (writeQueries.Length > 0)
                 {
-                    await PerfomWriteRequest(master, writeQueries, port);
+                    await PerfomWriteRequest(modbusClient, writeQueries);
                     writeQueueService.AcceptDequeued(settings.SerialName);
                     await Task.Delay(settings.MinSleepTimeout, cancellationToken);
                     continue;
@@ -250,37 +220,13 @@ namespace MudbusMqttPublisher.Server.Services
                     continue;
                 }
 
-				ReadFromPortAll(port);
-				await PerfomReadRequest(master, readTaskRequest!);
+				await PerfomReadRequest(modbusClient, readTaskRequest!);
                 await Task.Delay(settings.MinSleepTimeout, cancellationToken);
             }
         }
 
-        public void ReadFromPortAll(SerialPort port)
+        private async Task<bool> PerfomReadRequest(IModbusClient modbus, ReadTaskRequest readTask)
         {
-			if (port.BytesToRead > 0)
-            {
-                var buffer = new byte[port.BytesToRead];
-                var readed = port.Read(buffer, 0, buffer.Length);
-                if (readed > 0)
-                {
-                    logger.LogTrace($"Прочитан мусор из порта ({readed} байт): {BitConverter.ToString(buffer, 0, readed)}");
-                }
-            }
-
-		}
-
-        private async Task<bool> PerfomReadRequest(IModbusMaster modbus, ReadTaskRequest readTask)
-        {
-			modbus.Transport.Retries = readTask.Device.ReadRetryCount;
-			modbus.Transport.ReadTimeout = (int)readTask.Device.ReadTimeout.TotalMilliseconds;
-			modbus.Transport.WriteTimeout = (int)readTask.Device.WriteTimeout.TotalMilliseconds;
-
-
-			logger.LogDebug("Запрошено чтение информации из Modbus");
-            var slaveAddress = readTask.Device.SlaveAddress;
-            var startReg = (ushort)readTask.StartRegister;
-            var regCount = (ushort)readTask.RegisterCount;
             var readTime = DateTime.Now;
 
             if (readTask.RegType.IsBitReg())
@@ -289,26 +235,24 @@ namespace MudbusMqttPublisher.Server.Services
 
                 try
                 {
-					switch (readTask.RegType)
-					{
-						case RegisterType.Coil:
-							readResult = await modbus.ReadCoilsAsync(slaveAddress, startReg, regCount);
-							break;
-						case RegisterType.DiscreteInput:
-							readResult = await modbus.ReadInputsAsync(slaveAddress, startReg, regCount);
-							break;
-						default:
-							throw new NotImplementedException();
-					}
+                    readResult = await modbus.ReadBitRegistersAsync(new ModbusRequest(
+						readTask.Device.SlaveAddress,
+						(ushort)readTask.StartRegister,
+						(ushort)readTask.RegisterCount,
+                        readTask.RegType,
+                        readTask.Device.ReadRetryCount,
+                        readTask.Device.ReadTimeout,
+                        readTask.Device.WriteTimeout
+					));
 				}
 				catch (Exception ex)
                 {
-                    logger.LogError(ex, $"Ошибка чтения из устройства {slaveAddress}, тип рег. {readTask.RegType}, Номер рег.: {startReg}, Кол-во: {regCount}");
-					deviceMinMextReadTimes[slaveAddress] = DateTime.Now + readTask.Device.ErrorSleepTimeout;
+                    logger.LogError(ex, "Ошибка чтения из Modbus");
+					deviceMinMextReadTimes[readTask.Device.SlaveAddress] = DateTime.Now + readTask.Device.ErrorSleepTimeout;
                     return false;
 				}
 
-                deviceMinMextReadTimes[slaveAddress] = DateTime.Now + readTask.Device.MinSleepTimeout;
+                deviceMinMextReadTimes[readTask.Device.SlaveAddress] = DateTime.Now + readTask.Device.MinSleepTimeout;
 
                 for (int i = 0; i < readTask.RegisterCount; i++)
                 {
@@ -338,26 +282,24 @@ namespace MudbusMqttPublisher.Server.Services
 
                 try
                 {
-					switch (readTask.RegType)
-					{
-						case RegisterType.HoldingRegister:
-							readResult = await modbus.ReadHoldingRegistersAsync(slaveAddress, startReg, regCount);
-							break;
-						case RegisterType.InputRegister:
-							readResult = await modbus.ReadInputRegistersAsync(slaveAddress, startReg, regCount);
-							break;
-						default:
-							throw new NotImplementedException();
-					}
+					readResult = await modbus.ReadShortRegistersAsync(new ModbusRequest(
+						readTask.Device.SlaveAddress,
+						(ushort)readTask.StartRegister,
+						(ushort)readTask.RegisterCount,
+						readTask.RegType,
+						readTask.Device.ReadRetryCount,
+						readTask.Device.ReadTimeout,
+						readTask.Device.WriteTimeout
+					));
 				}
 				catch (Exception ex)
 				{
-					logger.LogError(ex, $"Ошибка чтения из устройства {slaveAddress}, тип рег. {readTask.RegType}, Номер рег.: {startReg}, Кол-во: {regCount}");
-					deviceMinMextReadTimes[slaveAddress] = DateTime.Now + readTask.Device.ErrorSleepTimeout;
+					logger.LogError(ex, "Ошибка чтения из Modbus");
+					deviceMinMextReadTimes[readTask.Device.SlaveAddress] = DateTime.Now + readTask.Device.ErrorSleepTimeout;
 					return false;
 				}
 
-				deviceMinMextReadTimes[slaveAddress] = DateTime.Now + readTask.Device.MinSleepTimeout;
+				deviceMinMextReadTimes[readTask.Device.SlaveAddress] = DateTime.Now + readTask.Device.MinSleepTimeout;
 
 				int endRegister = readTask.StartRegister + readTask.RegisterCount;
 
@@ -387,7 +329,7 @@ namespace MudbusMqttPublisher.Server.Services
             return true;
         }
 
-        private async Task<bool> PerfomWriteRequest(IModbusMaster modbus, WriteQuery[] queries, SerialPort port)
+        private async Task<bool> PerfomWriteRequest(IModbusClient modbus, WriteQuery[] queries)
         {
             (bool Found, DeviceSettings? Device, RegisterSettings? Register, IRegisterValue? Value) FindRegister(WriteQuery writeQuery)
             {
@@ -421,10 +363,6 @@ namespace MudbusMqttPublisher.Server.Services
                 var startInd = 0;
                 var maxBatchSize = groupArr[0].Register.RegType.IsBitReg() ? groupArr[0].Device.MaxReadBit : groupArr[0].Device.MaxReadRegisters;
 
-				modbus.Transport.Retries = groupArr[0].Device.WriteRetryCount;
-				modbus.Transport.ReadTimeout = (int)groupArr[0].Device.ReadTimeout.TotalMilliseconds;
-				modbus.Transport.WriteTimeout = (int)groupArr[0].Device.WriteTimeout.TotalMilliseconds;
-				
                 while (startInd < groupArr.Length)
                 {
                     var endInd = startInd + 1;
@@ -441,12 +379,6 @@ namespace MudbusMqttPublisher.Server.Services
                     {
 						var firstRegister = groupArr[startInd].Register;
 
-						if (firstRegister.RegType != RegisterType.Coil)
-						{
-							logger.LogError($"Нельзя писать в регистр {firstRegister.RegType}");
-                            continue;
-						}
-
 						var dataLength = groupArr[endInd - 1].Register.EndRegisterNumber - firstRegister.Number;
 						var data = new bool[dataLength];
 
@@ -457,15 +389,23 @@ namespace MudbusMqttPublisher.Server.Services
                             logger.LogDebug($"Запись в modbus {currReg.Register.Name} = {currReg.Value}");
 						}
 
-						ReadFromPortAll(port);
 						try
                         {
-							await modbus.WriteMultipleCoilsAsync(groupArr[0].Device.SlaveAddress, groupArr[startInd].Register.Number, data);
+							await modbus.WriteBitRegistersAsync(new ModbusRequest(
+								groupArr[0].Device.SlaveAddress,
+								groupArr[startInd].Register.Number,
+								(ushort)dataLength,
+								firstRegister.RegType,
+								groupArr[0].Device.ReadRetryCount,
+								groupArr[0].Device.ReadTimeout,
+								groupArr[0].Device.WriteTimeout
+							), data); 
+                            
                             result = true;
 						}
 						catch (Exception ex)
                         {
-							logger.LogError(ex, $"Ошибка записи в устройство {groupArr[0].Device.SlaveAddress}, тип рег. {firstRegister.RegType}, Номер рег.: {groupArr[startInd].Register}, Кол-во: {data.Length}");
+							logger.LogError(ex, $"Ошибка записи в устройство");
 							result = false;
 						}
 
@@ -473,12 +413,6 @@ namespace MudbusMqttPublisher.Server.Services
                     else
                     {
                         var firstRegister = groupArr[startInd].Register;
-
-						if (firstRegister.RegType != RegisterType.HoldingRegister)
-						{
-							logger.LogError($"Нельзя писать в регистр {firstRegister.RegType}");
-                            continue;
-						}
 
 						var dataLength = groupArr[endInd - 1].Register.EndRegisterNumber - firstRegister.Number;
                         var data = new ushort[dataLength];
@@ -490,15 +424,23 @@ namespace MudbusMqttPublisher.Server.Services
 							logger.LogDebug($"Запись в modbus {currReg.Register.Name} = {currReg.Value}");
 						}
 
-						ReadFromPortAll(port);
 						try
                         {
-							await modbus.WriteMultipleRegistersAsync(groupArr[0].Device.SlaveAddress, groupArr[startInd].Register.Number, data);
+							await modbus.WriteShortRegistersAsync(new ModbusRequest(
+								groupArr[0].Device.SlaveAddress,
+								groupArr[startInd].Register.Number,
+								(ushort)dataLength,
+								firstRegister.RegType,
+								groupArr[0].Device.ReadRetryCount,
+								groupArr[0].Device.ReadTimeout,
+								groupArr[0].Device.WriteTimeout
+							), data);
+
 							result = true;
 						}
 						catch (Exception ex)
                         {
-							logger.LogError(ex, $"Ошибка записи в устройство {groupArr[0].Device.SlaveAddress}, тип рег. {firstRegister.RegType}, Номер рег.: {groupArr[startInd].Register}, Кол-во: {data.Length}");
+							logger.LogError(ex, $"Ошибка записи в устройство");
 							result = false;
 						}
 					}
