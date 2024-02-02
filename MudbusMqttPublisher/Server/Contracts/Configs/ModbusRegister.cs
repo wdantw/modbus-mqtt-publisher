@@ -23,6 +23,8 @@
         public string? DecimalSeparator { get; set; }
 
         public double? CompareDiff { get; set; }
+
+        public bool? ForcePublish { get; set; }
 	}
 
     public class ModbusRegisterModifier : ModbusRegisterCommonParams

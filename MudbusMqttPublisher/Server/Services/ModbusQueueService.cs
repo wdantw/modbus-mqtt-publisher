@@ -215,7 +215,7 @@ namespace MudbusMqttPublisher.Server.Services
                     regValue.FromModbus(readResult.GetSegment(reg.Number - readTask.StartRegister, 1));
 
 					logger.LogDebug($"Для регистра {reg.Name} получены данные {regValue}");
-                    if (topickStateService.UpdateTopicState(new TopickStateDto(reg.Name, regValue, readTime)))
+                    if (topickStateService.UpdateTopicState(new TopickStateDto(reg.Name, regValue, readTime)) || reg.ForcePublish)
                     {
                         logger.LogDebug($"Для регистра {reg.Name} данные добавлены в очередь отправки");
                         mqttPublisher.PublishTopic(reg.Name);
@@ -259,7 +259,7 @@ namespace MudbusMqttPublisher.Server.Services
 					regValue.FromModbus(readResult.GetSegment(reg.Number - readTask.StartRegister, reg.SizeInRegisters));
 
                     logger.LogDebug($"Для регистра {reg.Name} получены данные {regValue}");
-                    if (topickStateService.UpdateTopicState(new TopickStateDto(reg.Name, regValue, readTime)))
+                    if (topickStateService.UpdateTopicState(new TopickStateDto(reg.Name, regValue, readTime)) || reg.ForcePublish)
                     {
                         logger.LogDebug($"Для регистра {reg.Name} данные добавлены в очередь отправки");
                         mqttPublisher.PublishTopic(reg.Name);

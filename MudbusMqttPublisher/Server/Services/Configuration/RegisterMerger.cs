@@ -16,6 +16,7 @@ namespace MudbusMqttPublisher.Server.Services.Configuration
             dest.Name = overrides.Name ?? dest.Name;
 			dest.DecimalSeparator = overrides.DecimalSeparator ?? dest.DecimalSeparator;
 			dest.CompareDiff = overrides.CompareDiff ?? dest.CompareDiff;
+			dest.ForcePublish = overrides.ForcePublish ?? dest.ForcePublish;
 		}
 
 		private static string[] TagList(this string? tags)

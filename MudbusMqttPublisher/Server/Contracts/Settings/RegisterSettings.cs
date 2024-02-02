@@ -15,7 +15,8 @@ namespace MudbusMqttPublisher.Server.Contracts.Settings
 			double? scale,
 			int? precision,
 			string? decimalSeparator,
-			double? compareDiff)
+			double? compareDiff,
+			bool forcePublish)
 		{
 			Name = name;
 			Number = number;
@@ -51,6 +52,7 @@ namespace MudbusMqttPublisher.Server.Contracts.Settings
 				throw new Exception("Параметр CompareDiff применим только когда указан Scale");
 
 			NextReadTime = DateTime.MinValue + (readPeriod ?? TimeSpan.FromDays(1));
+			ForcePublish = forcePublish;
 		}
 
 		// имя топика mqtt
@@ -77,6 +79,8 @@ namespace MudbusMqttPublisher.Server.Contracts.Settings
         public string? DecimalSeparator { get; }
 
 		public double? CompareDiff { get; } = null;
+
+		public bool ForcePublish { get; }
 
         public int SizeInRegisters => (Length ?? 1) * RegFormat.SizeInRegisters();
 

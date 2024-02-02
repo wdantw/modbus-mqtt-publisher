@@ -80,7 +80,8 @@ namespace MudbusMqttPublisher.Server.Services.Configuration
                 scale: register.Scale,
                 precision: register.Precision,
                 decimalSeparator: register.DecimalSeparator,
-                compareDiff: register.CompareDiff
+                compareDiff: register.CompareDiff,
+                forcePublish: register.ForcePublish ?? false
 				);
         }
     }
