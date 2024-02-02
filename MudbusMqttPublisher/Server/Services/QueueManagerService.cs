@@ -12,7 +12,7 @@ namespace MudbusMqttPublisher.Server.Services
 
         private readonly object synchObject = new object();
         private CancellationTokenSource currentCancellationTokenSource;
-        private PortSettings[] settings = null;
+        private PortSettings[]? settings = null;
 
         public QueueManagerService(IConfigurationResolver settingsService, ILogger<QueueManagerService> logger, IQueueFactoryService queueFactoryService, IHost host)
         {

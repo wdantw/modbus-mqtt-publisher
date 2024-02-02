@@ -21,11 +21,6 @@
 			}
 		}
 
-		public static ArraySegment<T> GetSegment<T>(this T[] array, int start, int length)
-		{
-			return new ArraySegment<T>(array, start, length);
-		}
-
 		public static void FromDouble(ref bool dest, double source) => dest = Convert.ToBoolean(source);
 		public static void FromDouble(ref ushort dest, double source) => dest = (ushort)Math.Round(source);
 		public static void FromDouble(ref uint dest, double source) => dest = (uint)Math.Round(source);

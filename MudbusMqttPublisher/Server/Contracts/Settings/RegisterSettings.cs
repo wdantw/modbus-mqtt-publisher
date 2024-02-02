@@ -1,7 +1,9 @@
-﻿namespace MudbusMqttPublisher.Server.Contracts.Settings
+﻿using MudbusMqttPublisher.Server.Services.Queues;
+
+namespace MudbusMqttPublisher.Server.Contracts.Settings
 {
-    public class RegisterSettings
-    {
+    public class RegisterSettings : IReadQueueRegister
+	{
 		public RegisterSettings(
 			string name,
 			ushort number,
@@ -47,6 +49,8 @@
 
 			if (CompareDiff != null && !Scale.HasValue)
 				throw new Exception("Параметр CompareDiff применим только когда указан Scale");
+
+			NextReadTime = DateTime.MinValue + (readPeriod ?? TimeSpan.FromDays(1));
 		}
 
 		// имя топика mqtt
@@ -77,5 +81,23 @@
         public int SizeInRegisters => (Length ?? 1) * RegFormat.SizeInRegisters();
 
         public ushort EndRegisterNumber => (ushort)(Number + (ushort)SizeInRegisters);
-    }
+
+
+
+		int IReadQueueRegister.StartNumber => Number;
+
+		int IReadQueueRegister.EndNumber => EndRegisterNumber;
+
+		public DateTime NextReadTime { get; private set; }
+
+		RegisterType IReadQueueRegister.RegisterType => RegType;
+
+		public event Action? NextReadTimeChanged = null;
+
+		public void SetNextReadTime(DateTime nextReadTime)
+		{
+			NextReadTime = nextReadTime;
+			NextReadTimeChanged?.Invoke();
+		}
+	}
 }

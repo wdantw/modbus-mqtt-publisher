@@ -1,14 +1,10 @@
 ﻿using MudbusMqttPublisher.Server.Contracts.Settings;
-using NModbus;
-using System.IO.Ports;
-using NModbus.Serial;
 using MudbusMqttPublisher.Server.Common;
 using MudbusMqttPublisher.Server.Contracts;
 using MudbusMqttPublisher.Server.Services.Types;
 using MudbusMqttPublisher.Server.Services.Modbus;
-using System.IO.Pipelines;
 using System.Globalization;
-using System;
+using MudbusMqttPublisher.Server.Services.Queues;
 
 namespace MudbusMqttPublisher.Server.Services
 {
@@ -19,7 +15,8 @@ namespace MudbusMqttPublisher.Server.Services
             DeviceSettings Device,
             RegisterType RegType,
             int StartRegister,
-            int RegisterCount
+            int RegisterCount,
+            ArraySegment<RegisterSettings> Registers
         );
 
         private readonly PortSettings settings;
@@ -30,7 +27,7 @@ namespace MudbusMqttPublisher.Server.Services
         private readonly IWriteQueueService writeQueueService;
         private readonly IRegisterValueFactory registerValueFactory;
 
-		Dictionary<byte, DateTime> deviceMinMextReadTimes = new();
+        ReadQueue<DeviceSettings, RegisterSettings> readQueue;
 
 		public ModbusQueueService(
 			PortSettings settings,
@@ -48,146 +45,9 @@ namespace MudbusMqttPublisher.Server.Services
 			this.mqttPublisher = mqttPublisher;
 			this.writeQueueService = writeQueueService;
 			this.registerValueFactory = registerValueFactory;
+
+            readQueue = new(settings.Devices);
 		}
-
-		private DateTime GetNextReadTime(DeviceSettings dev, RegisterSettings reg, DateTime curTime)
-        {
-            DateTime result;
-
-            var lastReadTime = topickStateService.GetTopicState(reg.Name)?.ReadTime;
-
-            if (lastReadTime.HasValue)
-            {
-                if (reg.ReadPeriod.HasValue)
-                    result = lastReadTime.Value + reg.ReadPeriod.Value;
-                else
-                    result = DateTime.MaxValue;
-            }
-            else
-            {
-                result = DateTime.MinValue;
-            }
-
-            if (deviceMinMextReadTimes.TryGetValue(dev.SlaveAddress, out var deviceMinNextReadTime))
-            {
-                // нелзя сравнивать с result, так как будет потерян приоритет для регистров, которые ни разу не читались
-                if (curTime < deviceMinNextReadTime)
-                    result = deviceMinNextReadTime;
-            }
-
-            return result;
-        }
-
-        private bool TestRegHole(RegisterSettings regLow, RegisterSettings regHi, DeviceSettings device)
-        {
-            var holeSize = regLow.Number - regHi.EndRegisterNumber;
-            
-            if (regLow.RegType.IsBitReg())
-            {
-                return holeSize <= device.MaxBitHole;
-            }
-            else
-            {
-                return holeSize <= device.MaxRegHole;
-            }
-        }
-
-        private (DateTime? waitForTime, ReadTaskRequest? readTaskRequest) GetReadTask()
-        {
-            var currTime = DateTime.Now;
-
-            var pending = settings.Devices.SelectMany(d => d.Registers.Select(r => new { Device = d, Register = r, NextReadTime = GetNextReadTime(d, r, currTime) }))
-                .OrderBy(r => r.NextReadTime)
-                .FirstAndFilterdByFirst((f, c) =>
-                {
-                    if (c.Device.SlaveAddress != f.Device.SlaveAddress) return false;
-                    if (c.Register.RegType != f.Register.RegType) return false;
-                    if (c.NextReadTime > currTime) return false;
-
-                    var distace = Math.Max(c.Register.EndRegisterNumber, f.Register.EndRegisterNumber) - Math.Min(c.Register.Number, f.Register.Number);
-
-                    if (f.Register.RegType.IsBitReg())
-                    {
-                        if (distace > f.Device.MaxReadBit) return false;
-                    }
-                    else
-                    {
-                        if (distace > f.Device.MaxReadRegisters) return false;
-                    }
-                    return true;
-                })
-                // если first не дождался совего времени, то выбираем только его, что бы исключить дальнейший анализ
-                .TakeOnlyFirstIf(f => f.NextReadTime > currTime)
-                .ToArray();
-
-            if (pending.Length == 0)
-            {
-                return (DateTime.MaxValue, null);
-            }
-
-            var first = pending[0];
-
-            if (first.NextReadTime > currTime)
-            {
-                return (first.NextReadTime, null);
-            }
-
-            // сейчас pending может содержать диапазон ячеек в два раза больше допустимого и не учитывает максимально длопустимое количество "дырок" в чтении
-
-            var before = pending
-                .Where(r => r.Register.Number <= first.Register.Number)
-                .OrderByDescending(r => r.Register.Number)
-                .TakeWhileWithPrev((p, c) => TestRegHole(p.Register, c.Register, first.Device))
-                .ToArray();
-
-            var after = pending
-                .Where(r => r.Register.Number >= first.Register.Number)
-                .OrderBy(r => r.Register.Number)
-                .TakeWhileWithPrev((p, c) => TestRegHole(c.Register, p.Register, first.Device))
-                .ToArray();
-
-            var startNumber = first.Register.Number;
-            var endNumber = first.Register.EndRegisterNumber;
-            var indBefore = 1;
-            var indAfter = 1;
-            var maxRead = first.Register.RegType.IsBitReg() ? first.Device.MaxReadBit : first.Device.MaxReadRegisters;
-
-            while (true)
-            {
-                var afterItem = indAfter < after.Length ? after[indAfter] : null;
-                var beforeItem = indBefore < before.Length ? before[indBefore] : null;
-                bool allowAfter = afterItem != null && (afterItem.Register.EndRegisterNumber - startNumber <= maxRead);
-                bool allowBefore = beforeItem != null && (endNumber - beforeItem.Register.Number <= maxRead);
-
-                if (!allowBefore && !allowAfter)
-                    break;
-
-                if (allowAfter && allowBefore)
-                {
-                    if (afterItem!.NextReadTime < beforeItem!.NextReadTime)
-                    {
-                        allowBefore = false;
-                    }
-                    else
-                    {
-                        allowAfter = false;
-                    }
-                }
-
-                if (allowAfter)
-                {
-                    indAfter++;
-                    endNumber = afterItem!.Register.EndRegisterNumber;
-                }
-                else
-                {
-                    indBefore++;
-                    startNumber = beforeItem!.Register.Number;
-                }
-            }
-
-            return (null, new ReadTaskRequest(first.Device, first.Register.RegType, startNumber, endNumber - startNumber));
-        }
 
         private void PublishValue(string topic, string value)
         {
@@ -220,19 +80,19 @@ namespace MudbusMqttPublisher.Server.Services
 			var format = (NumberFormatInfo)NumberFormatInfo.CurrentInfo.Clone();
 			format.NumberDecimalSeparator = DefaultSettings.DecimalSeparator;
 
-            PublishValue(MqttPath.CombineTopicPath(basePath, $"global_time"), globalTime.ToString());
+            PublishValue(MqttPath.CombineTopicPath(basePath, $"time_global"), globalTime.ToString());
 
 			var otherTime = globalTime;
 
 			foreach (var method in methodsTimes)
             {
-                PublishValue(MqttPath.CombineTopicPath(basePath, $"{method.Key}_percent"), method.Value.TotalMilliseconds / globalTime.TotalMilliseconds * 100.0);
-                PublishValue(MqttPath.CombineTopicPath(basePath, $"{method.Key}_time"), method.Value.ToString());
+                PublishValue(MqttPath.CombineTopicPath(basePath, $"percent_{method.Key}"), method.Value.TotalMilliseconds / globalTime.TotalMilliseconds * 100.0);
+                PublishValue(MqttPath.CombineTopicPath(basePath, $"time_{method.Key}"), method.Value.ToString());
                 otherTime = otherTime - method.Value;
 			}
 
-            PublishValue(MqttPath.CombineTopicPath(basePath, $"other_percent"), otherTime.TotalMilliseconds / globalTime.TotalMilliseconds * 100.0);
-            PublishValue(MqttPath.CombineTopicPath(basePath, $"other_time"), otherTime.ToString());
+            PublishValue(MqttPath.CombineTopicPath(basePath, $"percent_other"), otherTime.TotalMilliseconds / globalTime.TotalMilliseconds * 100.0);
+            PublishValue(MqttPath.CombineTopicPath(basePath, $"time_other"), otherTime.ToString());
 
 			PublishValue(MqttPath.CombineTopicPath(basePath, $"stat_readComands"), statReadCommands.ToString());
 			PublishValue(MqttPath.CombineTopicPath(basePath, $"stat_WriteCommands"), statWriteCommands.ToString());
@@ -276,26 +136,43 @@ namespace MudbusMqttPublisher.Server.Services
                 {
                     await profiler.WrapMethodAsync("write", () => PerfomWriteRequest(modbusClient, writeQueries));
                     writeQueueService.AcceptDequeued(settings.SerialName);
-                    await Task.Delay(settings.MinSleepTimeout, cancellationToken);
+					await profiler.WrapMethodAsync("sleep", () => Task.Delay(settings.MinSleepTimeout, cancellationToken));
                     continue;
                 }
 
-                (var waitForTime, var readTaskRequest) = profiler.WrapMethod("get_reads", GetReadTask);
-                
-                if (waitForTime.HasValue)
+                DateTime nextReadTime;
+
+                using (var getReadProfilerHolder = profiler.StartMethod("get_reads"))
                 {
-                    var delay = waitForTime.Value - DateTime.Now;
-                    if (delay > TimeSpan.FromSeconds(5)) delay = TimeSpan.FromHours(5);
-                    // чтоб не ломалось во время отладки или лагов
-                    if (delay < TimeSpan.Zero) continue;
-                    logger.LogDebug($"Ожидание следующего чтения {delay}");
+					if (readQueue.GetReadTask(DateTime.Now, out var readTask, out var readDevice, out var readRegType, out nextReadTime))
+					{
+						getReadProfilerHolder.Dispose();
 
-                    await Task.WhenAny(writeQueueService.WaitForItems(settings.SerialName, cancellationToken), Task.Delay(delay));
-                    continue;
-                }
+                        var readRequest = new ReadTaskRequest(
+							readDevice,
+                            readRegType.Value,
+                            readTask.Value[0].Number,
+                            readTask.Value[^1].EndRegisterNumber - readTask.Value[0].Number,
+                            readTask.Value);
 
-                await profiler.WrapMethodAsync("read", () => PerfomReadRequest(modbusClient, readTaskRequest!));
-                await Task.Delay(settings.MinSleepTimeout, cancellationToken);
+						await profiler.WrapMethodAsync("read", () => PerfomReadRequest(modbusClient, readRequest));
+						await profiler.WrapMethodAsync("sleep", () => Task.Delay(settings.MinSleepTimeout, cancellationToken));
+
+						continue;
+					}
+				}
+
+				var delay = nextReadTime - DateTime.Now;
+				
+                if (delay > TimeSpan.Zero)
+                {
+					if (delay > TimeSpan.FromSeconds(5))
+                        delay = TimeSpan.FromHours(5);
+
+					logger.LogDebug($"Ожидание следующего чтения {delay}");
+
+					await profiler.WrapMethodAsync("sleep", () => Task.WhenAny(writeQueueService.WaitForItems(settings.SerialName, cancellationToken), Task.Delay(delay)));
+				}
             }
         }
 
@@ -325,31 +202,23 @@ namespace MudbusMqttPublisher.Server.Services
 				catch (Exception ex)
                 {
                     logger.LogError(ex, "Ошибка чтения из Modbus");
-					deviceMinMextReadTimes[readTask.Device.SlaveAddress] = DateTime.Now + readTask.Device.ErrorSleepTimeout;
+                    readTask.Device.DeviceNextReadTime = DateTime.Now + readTask.Device.ErrorSleepTimeout;
                     return false;
 				}
 
-                deviceMinMextReadTimes[readTask.Device.SlaveAddress] = DateTime.Now + readTask.Device.MinSleepTimeout;
+				readTask.Device.DeviceNextReadTime = DateTime.Now + readTask.Device.MinSleepTimeout;
 
-                for (int i = 0; i < readTask.RegisterCount; i++)
+                foreach(var reg in readTask.Registers)
                 {
-                    int currNumber = readTask.StartRegister + i;
-                    var registers = readTask.Device.Registers
-                        .Where(r => r.Number == currNumber &&
-                                    r.RegType == readTask.RegType &&
-                                    r.RegFormat == RegisterFormat.Default);
+					reg.SetNextReadTime(reg.ReadPeriod.HasValue ? readTime + reg.ReadPeriod.Value : DateTime.MaxValue);
+					var regValue = registerValueFactory.Create(reg);
+                    regValue.FromModbus(readResult.GetSegment(reg.Number - readTask.StartRegister, 1));
 
-                    foreach (var reg in registers)
+					logger.LogDebug($"Для регистра {reg.Name} получены данные {regValue}");
+                    if (topickStateService.UpdateTopicState(new TopickStateDto(reg.Name, regValue, readTime)))
                     {
-                        var regValue = registerValueFactory.Create(reg);
-                        regValue.FromModbus(readResult.GetSegment(i, 1));
-
-						logger.LogDebug($"Для регистра {reg.Name} получены данные {regValue}");
-                        if (topickStateService.UpdateTopicState(new TopickStateDto(reg.Name, regValue, readTime)))
-                        {
-                            logger.LogDebug($"Для регистра {reg.Name} данные добавлены в очередь отправки");
-                            mqttPublisher.PublishTopic(reg.Name);
-                        }
+                        logger.LogDebug($"Для регистра {reg.Name} данные добавлены в очередь отправки");
+                        mqttPublisher.PublishTopic(reg.Name);
                     }
                 }
             }
@@ -375,33 +244,25 @@ namespace MudbusMqttPublisher.Server.Services
 				catch (Exception ex)
 				{
 					logger.LogError(ex, "Ошибка чтения из Modbus");
-					deviceMinMextReadTimes[readTask.Device.SlaveAddress] = DateTime.Now + readTask.Device.ErrorSleepTimeout;
+					readTask.Device.DeviceNextReadTime = DateTime.Now + readTask.Device.ErrorSleepTimeout;
 					return false;
 				}
 
-				deviceMinMextReadTimes[readTask.Device.SlaveAddress] = DateTime.Now + readTask.Device.MinSleepTimeout;
+				readTask.Device.DeviceNextReadTime = DateTime.Now + readTask.Device.MinSleepTimeout;
 
 				int endRegister = readTask.StartRegister + readTask.RegisterCount;
 
-                for (int i = 0; i < readTask.RegisterCount; i++)
-                {
-                    int currNumber = readTask.StartRegister + i;
-                    var registers = readTask.Device.Registers
-                        .Where(r => r.Number == currNumber &&
-                                    r.RegType == readTask.RegType &&
-                                    r.EndRegisterNumber <= endRegister);
+				foreach (var reg in readTask.Registers)
+				{
+					reg.SetNextReadTime(reg.ReadPeriod.HasValue ? readTime + reg.ReadPeriod.Value : DateTime.MaxValue);
+					var regValue = registerValueFactory.Create(reg);
+					regValue.FromModbus(readResult.GetSegment(reg.Number - readTask.StartRegister, reg.SizeInRegisters));
 
-                    foreach (var reg in registers)
+                    logger.LogDebug($"Для регистра {reg.Name} получены данные {regValue}");
+                    if (topickStateService.UpdateTopicState(new TopickStateDto(reg.Name, regValue, readTime)))
                     {
-                        var regValue = registerValueFactory.Create(reg);
-						regValue.FromModbus(readResult.GetSegment(i, reg.SizeInRegisters));
-
-                        logger.LogDebug($"Для регистра {reg.Name} получены данные {regValue}");
-                        if (topickStateService.UpdateTopicState(new TopickStateDto(reg.Name, regValue, readTime)))
-                        {
-                            logger.LogDebug($"Для регистра {reg.Name} данные добавлены в очередь отправки");
-                            mqttPublisher.PublishTopic(reg.Name);
-                        }
+                        logger.LogDebug($"Для регистра {reg.Name} данные добавлены в очередь отправки");
+                        mqttPublisher.PublishTopic(reg.Name);
                     }
                 }
             }
@@ -467,6 +328,7 @@ namespace MudbusMqttPublisher.Server.Services
 							var currReg = groupArr[regInd];
 							currReg.Value.ToModbus(data.GetSegment(currReg.Register.Number - firstRegister.Number, currReg.Register.SizeInRegisters));
                             logger.LogDebug($"Запись в modbus {currReg.Register.Name} = {currReg.Value}");
+							groupArr[regInd].Register.SetNextReadTime(DateTime.MinValue);
 						}
 
 						try
@@ -490,9 +352,8 @@ namespace MudbusMqttPublisher.Server.Services
 							logger.LogError(ex, $"Ошибка записи в устройство");
 							result = false;
 						}
-
 					}
-                    else
+					else
                     {
                         var firstRegister = groupArr[startInd].Register;
 
@@ -504,6 +365,7 @@ namespace MudbusMqttPublisher.Server.Services
                             var currReg = groupArr[regInd];
                             currReg.Value.ToModbus(data.GetSegment(currReg.Register.Number - firstRegister.Number, currReg.Register.SizeInRegisters));
 							logger.LogDebug($"Запись в modbus {currReg.Register.Name} = {currReg.Value}");
+							groupArr[regInd].Register.SetNextReadTime(DateTime.MinValue);
 						}
 
 						try

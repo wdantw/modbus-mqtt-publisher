@@ -2,11 +2,28 @@
 {
     public enum RegisterType
     {
-        Coil, // Coil bit R/W
-        DiscreteInput, // Input Bit R-Only
-        HoldingRegister, // Holding U16 R/W
-        InputRegister // Input Register U16 R-Only
+        // Coil bit R/W
+        Coil,
+
+        // Input Bit R-Only
+        DiscreteInput,
+
+		// Holding U16 R/W
+		HoldingRegister,
+
+        // Input Register U16 R-Only
+        InputRegister
     }
+
+    public static class RegisterTypeMetadata
+    {
+        public static RegisterType[] Types { get; }
+
+		static RegisterTypeMetadata()
+        {
+			Types = Enum.GetValues<RegisterType>();
+		}
+	}
 
     public static class RegisterTypeExtension
     {

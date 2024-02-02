@@ -1,7 +1,9 @@
-﻿namespace MudbusMqttPublisher.Server.Contracts.Settings
+﻿using MudbusMqttPublisher.Server.Services.Queues;
+
+namespace MudbusMqttPublisher.Server.Contracts.Settings
 {
-    public class DeviceSettings
-    {
+    public class DeviceSettings : IReadQueueDevice<RegisterSettings>
+	{
 		public DeviceSettings(
 			byte slaveAddress,
 			int maxRegHole,
@@ -54,5 +56,6 @@
 
 		public int ReadRetryCount { get; }
 
+		public DateTime DeviceNextReadTime { get; set; } = DateTime.MinValue;
 	}
 }
