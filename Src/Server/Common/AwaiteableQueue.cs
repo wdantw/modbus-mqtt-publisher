@@ -1,7 +1,7 @@
 ﻿using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 
-namespace MudbusMqttPublisher.Server.Common
+namespace ModbusMqttPublisher.Server.Common
 {
     public class AwaiteableQueue<TItem>
     {

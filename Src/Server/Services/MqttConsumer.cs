@@ -1,10 +1,10 @@
 ﻿using MQTTnet.Client;
 using MQTTnet;
 using Microsoft.Extensions.Options;
-using MudbusMqttPublisher.Server.Contracts.Configs;
-using MudbusMqttPublisher.Server.Common;
+using ModbusMqttPublisher.Server.Contracts.Configs;
+using ModbusMqttPublisher.Server.Common;
 
-namespace MudbusMqttPublisher.Server.Services
+namespace ModbusMqttPublisher.Server.Services
 {
 	public class MqttConsumer : BackgroundService
     {

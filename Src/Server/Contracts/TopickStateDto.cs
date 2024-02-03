@@ -1,6 +1,6 @@
-﻿using MudbusMqttPublisher.Server.Services.Types;
+﻿using ModbusMqttPublisher.Server.Services.Types;
 
-namespace MudbusMqttPublisher.Server.Contracts
+namespace ModbusMqttPublisher.Server.Contracts
 {
     public record TopickStateDto
     (

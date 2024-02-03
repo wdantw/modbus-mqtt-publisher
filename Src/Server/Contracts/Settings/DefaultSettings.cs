@@ -1,6 +1,6 @@
 ﻿using System.IO.Ports;
 
-namespace MudbusMqttPublisher.Server.Contracts.Settings
+namespace ModbusMqttPublisher.Server.Contracts.Settings
 {
     public static class DefaultSettings
     {

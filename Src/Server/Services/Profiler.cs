@@ -1,6 +1,6 @@
 ﻿using System.Diagnostics;
 
-namespace MudbusMqttPublisher.Server.Services
+namespace ModbusMqttPublisher.Server.Services
 {
 	public class Profiler
 	{

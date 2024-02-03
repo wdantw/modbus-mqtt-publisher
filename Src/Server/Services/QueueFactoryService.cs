@@ -1,6 +1,6 @@
-﻿using MudbusMqttPublisher.Server.Contracts.Settings;
+﻿using ModbusMqttPublisher.Server.Contracts.Settings;
 
-namespace MudbusMqttPublisher.Server.Services
+namespace ModbusMqttPublisher.Server.Services
 {
     public class QueueFactoryService : IQueueFactoryService
     {

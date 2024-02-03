@@ -1,12 +1,12 @@
-﻿using MudbusMqttPublisher.Server.Contracts.Settings;
-using MudbusMqttPublisher.Server.Common;
-using MudbusMqttPublisher.Server.Contracts;
-using MudbusMqttPublisher.Server.Services.Types;
-using MudbusMqttPublisher.Server.Services.Modbus;
+﻿using ModbusMqttPublisher.Server.Contracts.Settings;
+using ModbusMqttPublisher.Server.Common;
+using ModbusMqttPublisher.Server.Contracts;
+using ModbusMqttPublisher.Server.Services.Types;
+using ModbusMqttPublisher.Server.Services.Modbus;
 using System.Globalization;
-using MudbusMqttPublisher.Server.Services.Queues;
+using ModbusMqttPublisher.Server.Services.Queues;
 
-namespace MudbusMqttPublisher.Server.Services
+namespace ModbusMqttPublisher.Server.Services
 {
 	public class ModbusQueueService : IQueueService
     {

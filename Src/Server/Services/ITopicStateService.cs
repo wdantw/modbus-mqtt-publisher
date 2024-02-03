@@ -1,6 +1,6 @@
-﻿using MudbusMqttPublisher.Server.Contracts;
+﻿using ModbusMqttPublisher.Server.Contracts;
 
-namespace MudbusMqttPublisher.Server.Services
+namespace ModbusMqttPublisher.Server.Services
 {
     public interface ITopicStateService
     {

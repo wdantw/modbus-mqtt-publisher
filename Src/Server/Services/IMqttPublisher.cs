@@ -1,4 +1,4 @@
-﻿namespace MudbusMqttPublisher.Server.Services
+﻿namespace ModbusMqttPublisher.Server.Services
 {
     public interface IMqttPublisher
     {

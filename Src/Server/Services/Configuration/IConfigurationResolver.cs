@@ -1,6 +1,6 @@
-﻿using MudbusMqttPublisher.Server.Contracts.Settings;
+﻿using ModbusMqttPublisher.Server.Contracts.Settings;
 
-namespace MudbusMqttPublisher.Server.Services.Configuration
+namespace ModbusMqttPublisher.Server.Services.Configuration
 {
     public interface IConfigurationResolver
     {

@@ -1,4 +1,4 @@
-﻿namespace MudbusMqttPublisher.Server.Contracts.Configs
+﻿namespace ModbusMqttPublisher.Server.Contracts.Configs
 {
     public class ModbusRegisterCommonParams
     {

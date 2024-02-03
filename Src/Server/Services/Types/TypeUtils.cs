@@ -1,4 +1,4 @@
-﻿namespace MudbusMqttPublisher.Server.Services.Types
+﻿namespace ModbusMqttPublisher.Server.Services.Types
 {
 	public static class TypeUtils
 	{

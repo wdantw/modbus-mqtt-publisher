@@ -1,4 +1,4 @@
-﻿namespace MudbusMqttPublisher.Server.Common
+﻿namespace ModbusMqttPublisher.Server.Common
 {
     public static class EnumerableExtension
     {

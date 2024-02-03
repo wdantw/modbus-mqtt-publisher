@@ -1,6 +1,6 @@
 ﻿using System.IO.Ports;
 
-namespace MudbusMqttPublisher.Server.Contracts.Configs
+namespace ModbusMqttPublisher.Server.Contracts.Configs
 {
     public class ModbusPortBase : ReadParameters
     {

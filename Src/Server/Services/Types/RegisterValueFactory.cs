@@ -1,7 +1,7 @@
-﻿using MudbusMqttPublisher.Server.Contracts;
-using MudbusMqttPublisher.Server.Contracts.Settings;
+﻿using ModbusMqttPublisher.Server.Contracts;
+using ModbusMqttPublisher.Server.Contracts.Settings;
 
-namespace MudbusMqttPublisher.Server.Services.Types
+namespace ModbusMqttPublisher.Server.Services.Types
 {
 	public class RegisterValueFactory : IRegisterValueFactory
 	{

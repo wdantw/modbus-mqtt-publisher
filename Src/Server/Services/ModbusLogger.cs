@@ -1,6 +1,6 @@
 ﻿using NModbus;
 
-namespace MudbusMqttPublisher.Server.Services
+namespace ModbusMqttPublisher.Server.Services
 {
     public class ModbusLogger : IModbusLogger
     {

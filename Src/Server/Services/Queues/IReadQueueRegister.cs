@@ -1,6 +1,6 @@
-﻿using MudbusMqttPublisher.Server.Contracts;
+﻿using ModbusMqttPublisher.Server.Contracts;
 
-namespace MudbusMqttPublisher.Server.Services.Queues
+namespace ModbusMqttPublisher.Server.Services.Queues
 {
 	public interface IReadQueueRegister
 	{

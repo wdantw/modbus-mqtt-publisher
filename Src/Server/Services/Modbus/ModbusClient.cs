@@ -1,10 +1,10 @@
-﻿using MudbusMqttPublisher.Server.Contracts;
-using MudbusMqttPublisher.Server.Contracts.Settings;
+﻿using ModbusMqttPublisher.Server.Contracts;
+using ModbusMqttPublisher.Server.Contracts.Settings;
 using NModbus;
 using NModbus.Serial;
 using System.IO.Ports;
 
-namespace MudbusMqttPublisher.Server.Services.Modbus
+namespace ModbusMqttPublisher.Server.Services.Modbus
 {
 	public record ModbusRequest(
 		byte SlaveAddress,

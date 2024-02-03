@@ -1,6 +1,6 @@
-﻿using MudbusMqttPublisher.Server.Contracts.Configs;
+﻿using ModbusMqttPublisher.Server.Contracts.Configs;
 
-namespace MudbusMqttPublisher.Server.Services.Configuration
+namespace ModbusMqttPublisher.Server.Services.Configuration
 {
 	public static class DeviceMerger
     {

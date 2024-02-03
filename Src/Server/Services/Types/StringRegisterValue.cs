@@ -1,6 +1,6 @@
 ﻿using System.Text;
 
-namespace MudbusMqttPublisher.Server.Services.Types
+namespace ModbusMqttPublisher.Server.Services.Types
 {
 	public class StringRegisterValue : IRegisterValue
 	{

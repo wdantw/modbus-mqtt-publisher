@@ -1,6 +1,6 @@
-﻿using MudbusMqttPublisher.Server.Contracts.Settings;
+﻿using ModbusMqttPublisher.Server.Contracts.Settings;
 
-namespace MudbusMqttPublisher.Server.Services.Modbus
+namespace ModbusMqttPublisher.Server.Services.Modbus
 {
 	public class ModbusClientFactory : IModbusClientFactory
 	{

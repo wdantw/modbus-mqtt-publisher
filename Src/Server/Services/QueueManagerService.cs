@@ -1,7 +1,7 @@
-﻿using MudbusMqttPublisher.Server.Contracts.Settings;
-using MudbusMqttPublisher.Server.Services.Configuration;
+﻿using ModbusMqttPublisher.Server.Contracts.Settings;
+using ModbusMqttPublisher.Server.Services.Configuration;
 
-namespace MudbusMqttPublisher.Server.Services
+namespace ModbusMqttPublisher.Server.Services
 {
     public class QueueManagerService : BackgroundService, IQueueManagerService
     {

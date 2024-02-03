@@ -1,12 +1,12 @@
 using MQTTnet;
-using MudbusMqttPublisher.Server.Contracts.Configs;
-using MudbusMqttPublisher.Server.Services;
-using MudbusMqttPublisher.Server.Services.Configuration;
-using MudbusMqttPublisher.Server.Services.Modbus;
-using MudbusMqttPublisher.Server.Services.Types;
+using ModbusMqttPublisher.Server.Contracts.Configs;
+using ModbusMqttPublisher.Server.Services;
+using ModbusMqttPublisher.Server.Services.Configuration;
+using ModbusMqttPublisher.Server.Services.Modbus;
+using ModbusMqttPublisher.Server.Services.Types;
 using NModbus;
 
-namespace MudbusMqttPublisher
+namespace ModbusMqttPublisher
 {
     public class Program
     {

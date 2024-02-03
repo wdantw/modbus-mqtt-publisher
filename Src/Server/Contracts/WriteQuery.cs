@@ -1,4 +1,4 @@
-﻿namespace MudbusMqttPublisher.Server.Contracts
+﻿namespace ModbusMqttPublisher.Server.Contracts
 {
 	public record WriteQuery(string TopicName, ArraySegment<byte> Value);
 }

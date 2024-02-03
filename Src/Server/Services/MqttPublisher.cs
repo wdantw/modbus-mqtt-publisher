@@ -1,9 +1,9 @@
 ﻿using Microsoft.Extensions.Options;
 using MQTTnet;
-using MudbusMqttPublisher.Server.Common;
-using MudbusMqttPublisher.Server.Contracts.Configs;
+using ModbusMqttPublisher.Server.Common;
+using ModbusMqttPublisher.Server.Contracts.Configs;
 
-namespace MudbusMqttPublisher.Server.Services
+namespace ModbusMqttPublisher.Server.Services
 {
     public class MqttPublisher : BackgroundService, IMqttPublisher
     {

@@ -1,8 +1,8 @@
-﻿using MudbusMqttPublisher.Server.Common;
-using MudbusMqttPublisher.Server.Contracts;
+﻿using ModbusMqttPublisher.Server.Common;
+using ModbusMqttPublisher.Server.Contracts;
 using System.Diagnostics.CodeAnalysis;
 
-namespace MudbusMqttPublisher.Server.Services.Queues
+namespace ModbusMqttPublisher.Server.Services.Queues
 {
 	public class ReadQueue<TDevice, TRegister>
 		where TDevice : class, IReadQueueDevice<TRegister>

@@ -1,8 +1,8 @@
-﻿using MudbusMqttPublisher.Server.Common;
-using MudbusMqttPublisher.Server.Contracts;
+﻿using ModbusMqttPublisher.Server.Common;
+using ModbusMqttPublisher.Server.Contracts;
 using System.Collections.Concurrent;
 
-namespace MudbusMqttPublisher.Server.Services
+namespace ModbusMqttPublisher.Server.Services
 {
     public class WriteQueueService : IWriteQueueService
     {

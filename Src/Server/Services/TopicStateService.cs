@@ -1,10 +1,10 @@
 ﻿using Microsoft.Extensions.Options;
-using MudbusMqttPublisher.Server.Contracts;
-using MudbusMqttPublisher.Server.Contracts.Configs;
-using MudbusMqttPublisher.Server.Services.Types;
+using ModbusMqttPublisher.Server.Contracts;
+using ModbusMqttPublisher.Server.Contracts.Configs;
+using ModbusMqttPublisher.Server.Services.Types;
 using System.Collections.Concurrent;
 
-namespace MudbusMqttPublisher.Server.Services
+namespace ModbusMqttPublisher.Server.Services
 {
     public class TopicStateService : ITopicStateService
     {

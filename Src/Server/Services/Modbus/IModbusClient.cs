@@ -1,4 +1,4 @@
-﻿namespace MudbusMqttPublisher.Server.Services.Modbus
+﻿namespace ModbusMqttPublisher.Server.Services.Modbus
 {
 	public interface IModbusClient : IDisposable
 	{

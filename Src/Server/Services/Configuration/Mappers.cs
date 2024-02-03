@@ -1,9 +1,9 @@
-﻿using MudbusMqttPublisher.Server.Common;
-using MudbusMqttPublisher.Server.Contracts.Configs;
-using MudbusMqttPublisher.Server.Contracts.Settings;
+﻿using ModbusMqttPublisher.Server.Common;
+using ModbusMqttPublisher.Server.Contracts.Configs;
+using ModbusMqttPublisher.Server.Contracts.Settings;
 using System.Runtime.CompilerServices;
 
-namespace MudbusMqttPublisher.Server.Services.Configuration
+namespace ModbusMqttPublisher.Server.Services.Configuration
 {
     public static class Mappers
     {
