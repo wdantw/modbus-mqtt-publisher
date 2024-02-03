@@ -1,4 +1,5 @@
 ﻿using ModbusMqttPublisher.Server.Services.Queues;
+using ModbusMqttPublisher.Server.Services.Values;
 
 namespace ModbusMqttPublisher.Server.Contracts.Settings
 {
@@ -53,6 +54,8 @@ namespace ModbusMqttPublisher.Server.Contracts.Settings
 
 			NextReadTime = DateTime.MinValue + (readPeriod ?? TimeSpan.FromDays(1));
 			ForcePublish = forcePublish;
+
+			registerValue = RegisterValueStorageFactory.Create(this);
 		}
 
 		// имя топика mqtt
@@ -102,6 +105,30 @@ namespace ModbusMqttPublisher.Server.Contracts.Settings
 		{
 			NextReadTime = nextReadTime;
 			NextReadTimeChanged?.Invoke();
+		}
+
+		private IRegisterValueStorageWithInConverter registerValue;
+
+		public IPublishValueSorage PublishValue => registerValue;
+
+		public IIncomeRegisterConverter IncomeValueConverter => registerValue;
+
+		private bool isFirstWrite = true;
+
+        public bool ReadFromModbus(DateTime readTime, ReadOnlySpan<ushort> data)
+		{
+			SetNextReadTime(ReadPeriod.HasValue ? (readTime + ReadPeriod.Value) : DateTime.MaxValue);
+			var res = registerValue.FromModbus(data) || isFirstWrite;
+			isFirstWrite = false;
+			return res;
+		}
+
+		public bool ReadFromModbus(DateTime readTime, ReadOnlySpan<bool> data)
+		{
+			SetNextReadTime(ReadPeriod.HasValue ? (readTime + ReadPeriod.Value) : DateTime.MaxValue);
+			var res = registerValue.FromModbus(data) || isFirstWrite;
+			isFirstWrite = false;
+			return res;
 		}
 	}
 }

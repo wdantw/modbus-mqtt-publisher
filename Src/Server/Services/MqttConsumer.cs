@@ -1,5 +1,4 @@
 ﻿using MQTTnet.Client;
-using MQTTnet;
 using Microsoft.Extensions.Options;
 using ModbusMqttPublisher.Server.Contracts.Configs;
 using ModbusMqttPublisher.Server.Common;

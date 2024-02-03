@@ -3,13 +3,13 @@ using ModbusMqttPublisher.Server.Contracts.Configs;
 using ModbusMqttPublisher.Server.Services;
 using ModbusMqttPublisher.Server.Services.Configuration;
 using ModbusMqttPublisher.Server.Services.Modbus;
-using ModbusMqttPublisher.Server.Services.Types;
 using NModbus;
 using ModbusMqttPublisher.Server.Services.Mqtt;
+using ModbusMqttPublisher.Server.Services.Publisher;
 
 namespace ModbusMqttPublisher
 {
-    public class Program
+	public class Program
     {
         private static bool IsFakeModbus()
         {
@@ -46,14 +46,12 @@ namespace ModbusMqttPublisher
 			builder.Services.AddTransient<IQueueFactoryService, QueueFactoryService>();
             builder.Services.AddTransient<ModbusLogger>();
             builder.Services.AddTransient<IConfigurationResolver, ConfigurationResolver>();
-			builder.Services.AddTransient<IRegisterValueFactory, RegisterValueFactory>();
             if (IsFakeModbus())
                 builder.Services.AddTransient<IModbusClientFactory, FakeFactory>();
             else
 				builder.Services.AddTransient<IModbusClientFactory, ModbusClientFactory>();
             builder.Services.AddTransient<IMqttClientFactory, MqttClientFactory>();
 			builder.Services.AddSingleton<IModbusFactory>(p => new ModbusFactory(null, true, p.GetRequiredService<ModbusLogger>()));
-            builder.Services.AddSingleton<ITopicStateService, TopicStateService>();
             builder.Services.AddSingleton<MqttFactory>();
             builder.Services.AddSingleton<IWriteQueueService, WriteQueueService>();
 

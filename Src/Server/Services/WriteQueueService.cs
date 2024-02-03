@@ -21,9 +21,12 @@ namespace ModbusMqttPublisher.Server.Services
 
         public Task WaitForItems(string serialName, CancellationToken cancellationToken) => GetQueue(serialName).WaitForItems(cancellationToken);
 
-        public WriteQuery[] GetQueries(string serialName)
+        public WriteQuery? GetQuery(string serialName)
         {
-            return GetQueue(serialName).TryGetAll();
+            if (GetQueue(serialName).TryGet(out var result))
+                return result;
+            else
+                return null;
         }
 
         public void AcceptDequeued(string serialName)
