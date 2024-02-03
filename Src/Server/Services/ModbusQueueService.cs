@@ -176,7 +176,7 @@ namespace ModbusMqttPublisher.Server.Services
                 try
                 {
                     statReadCommands++;
-                    statReadDataBytes += readTask.RegisterCount / 8 + (readTask.RegisterCount % 8 > 0 ? 1 : 1);
+                    statReadDataBytes += (readTask.RegisterCount + 7) / 8;
 
 					using var holder = profiler.StartMethod("nmodbus_read");
 
