@@ -1,25 +1,24 @@
-﻿using Microsoft.Extensions.Options;
-using MQTTnet;
+﻿using MQTTnet;
 using ModbusMqttPublisher.Server.Common;
-using ModbusMqttPublisher.Server.Contracts.Configs;
+using ModbusMqttPublisher.Server.Services.Mqtt;
 
 namespace ModbusMqttPublisher.Server.Services
 {
-    public class MqttPublisher : BackgroundService, IMqttPublisher
+	public class MqttPublisher : BackgroundService, IMqttPublisher
     {
-        private readonly IOptions<MqttOptions> options;
         private AwaiteableQueue<string> pendingTopics = new();
         private readonly ITopicStateService topicStateService;
         private readonly ILogger<MqttPublisher> logger;
+        private readonly IMqttClientFactory mqttClientFactory;
 
-        public MqttPublisher(IOptions<MqttOptions> options, ITopicStateService topicStateService, ILogger<MqttPublisher> logger)
-        {
-            this.options = options;
-            this.topicStateService = topicStateService;
-            this.logger = logger;
-        }
+		public MqttPublisher(ITopicStateService topicStateService, ILogger<MqttPublisher> logger, IMqttClientFactory mqttClientFactory)
+		{
+			this.topicStateService = topicStateService;
+			this.logger = logger;
+			this.mqttClientFactory = mqttClientFactory;
+		}
 
-        public void PublishTopic(string topicName)
+		public void PublishTopic(string topicName)
         {
             pendingTopics.Enqueue(topicName);
         }
@@ -35,13 +34,7 @@ namespace ModbusMqttPublisher.Server.Services
 
         public async Task SendPending(CancellationToken cancellationToken)
         {
-            var mqttFactory = new MqttFactory();
-            using var client = mqttFactory.CreateMqttClient();
-            var connectOptions = mqttFactory.CreateClientOptionsBuilder()
-                .WithTcpServer(options.Value.TcpAddress)
-                .Build();
-
-            await client.ConnectAsync(connectOptions, cancellationToken);
+			using var client = await mqttClientFactory.Create(cancellationToken);
 
             while (pendingTopics.TryDequeue(out var dequeuedName))
             {

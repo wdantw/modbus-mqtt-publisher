@@ -5,6 +5,7 @@ using ModbusMqttPublisher.Server.Services.Configuration;
 using ModbusMqttPublisher.Server.Services.Modbus;
 using ModbusMqttPublisher.Server.Services.Types;
 using NModbus;
+using ModbusMqttPublisher.Server.Services.Mqtt;
 
 namespace ModbusMqttPublisher
 {
@@ -50,6 +51,7 @@ namespace ModbusMqttPublisher
                 builder.Services.AddTransient<IModbusClientFactory, FakeFactory>();
             else
 				builder.Services.AddTransient<IModbusClientFactory, ModbusClientFactory>();
+            builder.Services.AddTransient<IMqttClientFactory, MqttClientFactory>();
 			builder.Services.AddSingleton<IModbusFactory>(p => new ModbusFactory(null, true, p.GetRequiredService<ModbusLogger>()));
             builder.Services.AddSingleton<ITopicStateService, TopicStateService>();
             builder.Services.AddSingleton<MqttFactory>();

@@ -3,6 +3,7 @@ using MQTTnet;
 using Microsoft.Extensions.Options;
 using ModbusMqttPublisher.Server.Contracts.Configs;
 using ModbusMqttPublisher.Server.Common;
+using ModbusMqttPublisher.Server.Services.Mqtt;
 
 namespace ModbusMqttPublisher.Server.Services
 {
@@ -11,26 +12,24 @@ namespace ModbusMqttPublisher.Server.Services
         private readonly IOptions<MqttOptions> options;
         private readonly IWriteQueueService writeQueueService;
         private readonly IQueueManagerService queueManagerService;
+		private readonly IMqttClientFactory mqttClientFactory;
 
-        public MqttConsumer(IOptions<MqttOptions> options, IWriteQueueService writeQueueService, IQueueManagerService queueManagerService)
-        {
-            this.options = options;
-            this.writeQueueService = writeQueueService;
-            this.queueManagerService = queueManagerService;
-        }
+		public MqttConsumer(IOptions<MqttOptions> options, IWriteQueueService writeQueueService, IQueueManagerService queueManagerService, IMqttClientFactory mqttClientFactory)
+		{
+			this.options = options;
+			this.writeQueueService = writeQueueService;
+			this.queueManagerService = queueManagerService;
+			this.mqttClientFactory = mqttClientFactory;
+		}
 
-        protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+		protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            var mqttFactory = new MqttFactory();
-            using var client = mqttFactory.CreateMqttClient();
-            var connectOptions = mqttFactory.CreateClientOptionsBuilder()
-                .WithTcpServer(options.Value.TcpAddress)
-                .Build();
+			using var client = await mqttClientFactory.Create(stoppingToken);
 
             client.ApplicationMessageReceivedAsync += Client_ApplicationMessageReceivedAsync;
-            await client.ConnectAsync(connectOptions, stoppingToken);
-            var mqttSubscribeOptions = mqttFactory.CreateSubscribeOptionsBuilder()
-                .WithTopicFilter(f => f.WithTopic(MqttPath.CombineTopicPath(options.Value.BaseTopicPath, "#")))
+
+            var mqttSubscribeOptions = new MqttClientSubscribeOptionsBuilder()
+				.WithTopicFilter(f => f.WithTopic(MqttPath.CombineTopicPath(options.Value.BaseTopicPath, "#")))
                 .Build();
 
             await client.SubscribeAsync(mqttSubscribeOptions, stoppingToken);
