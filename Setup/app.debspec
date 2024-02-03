@@ -4,7 +4,7 @@ outdir: ..\binary
 # main info
 
 package: modbus-mqtt-publisher
-version: 1.0.10
+version: 1.0.16
 architecture: armhf
 maintainer: Dant <kloundant@mail.ru>
 description: mqtt modbus gateway
@@ -18,9 +18,9 @@ prerm:    Setup\prerm      text
 
 # vars
 INSTALLDIR = opt/modbus-mqtt-publisher
-PUBLISHDIR = MudbusMqttPublisher\Server\bin\Release\net6.0\publish
+PUBLISHDIR = publish\linux-arm
 
 # files
 file: Setup\modbus-mqtt-publisher.service  etc/systemd/system/  text
-file: {PUBLISHDIR}\** {INSTALLDIR}/
-conffile: MudbusMqttPublisher\Server\modbus-mqtt-publisher.json etc/modbus-mqtt-publisher.json
+file: {PUBLISHDIR}\** {INSTALLDIR}/ 777
+conffile: Src\Server\modbus-mqtt-publisher.json etc/modbus-mqtt-publisher.json

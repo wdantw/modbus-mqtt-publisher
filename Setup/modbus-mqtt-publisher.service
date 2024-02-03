@@ -1,6 +1,6 @@
 [Service]
 WorkingDirectory=/opt/modbus-mqtt-publisher
-ExecStart=dotnet /opt/modbus-mqtt-publisher/MudbusMqttPublisher.Server.dll
+ExecStart=/opt/modbus-mqtt-publisher/ModbusMqttPublisher.Server
 Restart=always
 # Restart service after 10 seconds if the dotnet service crashes:
 RestartSec=10
