@@ -75,9 +75,19 @@ namespace ModbusMqttPublisher.Server.Services
 
 			foreach (var method in methodsTimes)
             {
-                PublishValue(MqttPath.CombineTopicPath(basePath, $"percent_{method.Key}"), method.Value.TotalMilliseconds / globalTime.TotalMilliseconds * 100.0);
-                PublishValue(MqttPath.CombineTopicPath(basePath, $"time_{method.Key}"), method.Value.ToString());
-                otherTime = otherTime - method.Value;
+				var methodName = method.Key;
+
+				if (methodName.StartsWith("$"))
+				{
+					methodName = methodName.Substring(1);
+				}
+				else
+				{
+					otherTime = otherTime - method.Value;
+				}
+
+				PublishValue(MqttPath.CombineTopicPath(basePath, $"percent_{methodName}"), method.Value.TotalMilliseconds / globalTime.TotalMilliseconds * 100.0);
+                PublishValue(MqttPath.CombineTopicPath(basePath, $"time_{methodName}"), method.Value.ToString());
 			}
 
             PublishValue(MqttPath.CombineTopicPath(basePath, $"percent_other"), otherTime.TotalMilliseconds / globalTime.TotalMilliseconds * 100.0);
@@ -107,9 +117,9 @@ namespace ModbusMqttPublisher.Server.Services
 
 		public async Task Run(CancellationToken cancellationToken)
         {
-            using var modbusClient = modbusFactory.Create(settings);
+			var profiler = new Profiler();
+			using var modbusClient = modbusFactory.Create(settings, profiler);
 
-            var profiler = new Profiler();
 			profiler.Start();
 			while (!cancellationToken.IsCancellationRequested)
             {
@@ -178,7 +188,7 @@ namespace ModbusMqttPublisher.Server.Services
                     statReadCommands++;
                     statReadDataBytes += (readTask.RegisterCount + 7) / 8;
 
-					using var holder = profiler.StartMethod("nmodbus_read");
+					using var holder = profiler.StartMethod("$nmodbus_read");
 
 					readResult = await modbus.ReadBitRegistersAsync(new ModbusRequest(
 						readTask.Device.SlaveAddress,
@@ -189,6 +199,8 @@ namespace ModbusMqttPublisher.Server.Services
                         readTask.Device.ReadTimeout,
                         readTask.Device.WriteTimeout
 					));
+
+					holder.Dispose();
 				}
 				catch (Exception ex)
                 {
@@ -220,7 +232,7 @@ namespace ModbusMqttPublisher.Server.Services
 					statReadCommands++;
 					statReadDataBytes += readTask.RegisterCount * 2;
 					
-					using var holder = profiler.StartMethod("nmodbus_read");
+					using var holder = profiler.StartMethod("$nmodbus_read");
 
 					readResult = await modbus.ReadShortRegistersAsync(new ModbusRequest(
 						readTask.Device.SlaveAddress,
@@ -231,6 +243,8 @@ namespace ModbusMqttPublisher.Server.Services
 						readTask.Device.ReadTimeout,
 						readTask.Device.WriteTimeout
 					));
+
+					holder.Dispose();
 				}
 				catch (Exception ex)
 				{

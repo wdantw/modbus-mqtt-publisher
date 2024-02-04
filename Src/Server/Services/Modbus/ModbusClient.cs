@@ -23,7 +23,7 @@ namespace ModbusMqttPublisher.Server.Services.Modbus
 		SerialPort serialPort;
 		bool isFirstConnect = true;
 
-		public ModbusClient(PortSettings settings, IModbusFactory modbusFactory, ILogger<ModbusClient> logger)
+		public ModbusClient(PortSettings settings, Profiler profiler, IModbusFactory modbusFactory, ILogger<ModbusClient> logger)
 		{
 			this.logger = logger;
 
@@ -33,7 +33,7 @@ namespace ModbusMqttPublisher.Server.Services.Modbus
 			serialPort.Parity = settings.Parity;
 			serialPort.StopBits = settings.StopBits;
 
-			modbusMaster = modbusFactory.CreateRtuMaster(serialPort);
+			modbusMaster = modbusFactory.CreateRtuMaster(new ProfiledSerialPortAdapter(serialPort, profiler));
 		}
 
 		public void Dispose()

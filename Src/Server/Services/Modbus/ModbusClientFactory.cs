@@ -11,9 +11,9 @@ namespace ModbusMqttPublisher.Server.Services.Modbus
 			this.serviceProvider = serviceProvider;
 		}
 
-		public IModbusClient Create(PortSettings settings)
+		public IModbusClient Create(PortSettings settings, Profiler profiler)
 		{
-			return ActivatorUtilities.CreateInstance<ModbusClient>(serviceProvider, settings);
+			return ActivatorUtilities.CreateInstance<ModbusClient>(serviceProvider, settings, profiler);
 		}
 	}
 }
