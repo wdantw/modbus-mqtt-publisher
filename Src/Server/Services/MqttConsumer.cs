@@ -32,7 +32,7 @@ namespace ModbusMqttPublisher.Server.Services
                 .Build();
 
             await client.SubscribeAsync(mqttSubscribeOptions, stoppingToken);
-            await Task.Delay(Timeout.Infinite, stoppingToken);
+			await stoppingToken.WhenCancelled();
         }
 
         private Task Client_ApplicationMessageReceivedAsync(MqttApplicationMessageReceivedEventArgs arg)

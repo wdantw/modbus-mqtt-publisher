@@ -17,7 +17,7 @@ namespace ModbusMqttPublisher.Server.Common
 
         public Task WaitForItems() => hasItemsTcs.Task;
         
-        public Task WaitForItems(CancellationToken cancellationToken) => Task.WhenAny(WaitForItems(), Task.Delay(Timeout.Infinite, cancellationToken));
+        public Task WaitForItems(CancellationToken cancellationToken) => WaitForItems().WithCancellation(cancellationToken);
 
         public bool TryDequeue([MaybeNullWhen(false)] out TItem item)
         {
@@ -63,7 +63,10 @@ namespace ModbusMqttPublisher.Server.Common
                 dequeued = new TItem[] { item! };
             }
 
-            hasItemsTcs = new TaskCompletionSource();
+            // предотвращаем утечку памяти
+            // TODO: предотвращается методом окончанеия бесконечных ожиданий. утечка не тут а там где ждут комбинирую с токеном отмены и таймаутом. подумать как сделать лучше
+            hasItemsTcs.TrySetResult();
+			hasItemsTcs = new TaskCompletionSource();
 
             if (!queue.IsEmpty)
                 hasItemsTcs.TrySetResult();

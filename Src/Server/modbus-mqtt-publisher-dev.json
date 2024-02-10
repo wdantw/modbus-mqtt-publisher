@@ -1,7 +1,7 @@
 {
   "Logging": {
     "LogLevel": {
-      "Default": "Debug"
+      "Default": "Information"
     }
   },
 
@@ -12,7 +12,7 @@
   "ModbusPorts": [
     {
       "SerialName": "COM3",
-      "BaudRate": 9600,
+      "BaudRate": 19200,
       "DataBits": 8,
       "Parity": "None",
       "StopBits": "One",
@@ -24,7 +24,9 @@
           "ParentTypeName":  "SHT20"
         }
       ],
-      "ErrorSleepTimeout": "00:00:05.000"
+      "ErrorSleepTimeout": "00:00:05.000",
+      "_MaxReadRegisters": 1,
+      "_MaxReadBit": 1
     }
   ],
 

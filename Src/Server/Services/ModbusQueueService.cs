@@ -170,7 +170,7 @@ namespace ModbusMqttPublisher.Server.Services
 
 					logger.LogDebug($"Ожидание следующего чтения {delay}");
 
-					await profiler.WrapMethodAsync("sleep", () => Task.WhenAny(writeQueueService.WaitForItems(settings.SerialName, cancellationToken), Task.Delay(delay)));
+					await profiler.WrapMethodAsync("sleep", () => writeQueueService.WaitForItems(settings.SerialName, cancellationToken).WithTimeoutNotThrow(delay));
 				}
             }
         }
