@@ -3,10 +3,11 @@ using Microsoft.Extensions.Options;
 using ModbusMqttPublisher.Server.Contracts.Configs;
 using ModbusMqttPublisher.Server.Common;
 using ModbusMqttPublisher.Server.Services.Mqtt;
+using MQTTnet;
 
 namespace ModbusMqttPublisher.Server.Services
 {
-	public class MqttConsumer : BackgroundService
+    public class MqttConsumer : BackgroundService
     {
         private readonly IOptions<MqttOptions> options;
         private readonly IWriteQueueService writeQueueService;
@@ -27,11 +28,11 @@ namespace ModbusMqttPublisher.Server.Services
 
             client.ApplicationMessageReceivedAsync += Client_ApplicationMessageReceivedAsync;
 
-            var mqttSubscribeOptions = new MqttClientSubscribeOptionsBuilder()
-				.WithTopicFilter(f => f.WithTopic(MqttPath.CombineTopicPath(options.Value.BaseTopicPath, "#")))
+            var topicFilter = new MqttTopicFilterBuilder()
+                .WithTopic(MqttPath.CombineTopicPath(options.Value.BaseTopicPath, "#"))
                 .Build();
 
-            await client.SubscribeAsync(mqttSubscribeOptions, stoppingToken);
+            await client.SubscribeAsync(new [] { topicFilter });
 			await stoppingToken.WhenCancelled();
         }
 

@@ -1,11 +1,11 @@
 ﻿using MQTTnet;
 using ModbusMqttPublisher.Server.Common;
 using ModbusMqttPublisher.Server.Services.Mqtt;
-using MQTTnet.Client;
+using MQTTnet.Extensions.ManagedClient;
 
 namespace ModbusMqttPublisher.Server.Services.Publisher
 {
-	public class MqttPublisher : BackgroundService, IMqttPublisher
+    public class MqttPublisher : BackgroundService, IMqttPublisher
     {
         private AwaiteableQueue<PublishCommand> pendingTopics = new();
         private readonly ILogger<MqttPublisher> logger;
@@ -33,7 +33,7 @@ namespace ModbusMqttPublisher.Server.Services.Publisher
             }
         }
 
-        public async Task SendPending(IMqttClient client, CancellationToken cancellationToken)
+        public async Task SendPending(IManagedMqttClient client, CancellationToken cancellationToken)
         {
             while (pendingTopics.TryDequeue(out var command))
             {
@@ -45,7 +45,8 @@ namespace ModbusMqttPublisher.Server.Services.Publisher
                     .WithRetainFlag(command.Retain)
                     .Build();
 
-                await client.PublishAsync(applicationMessage, cancellationToken);
+                await client.EnqueueAsync(applicationMessage);
+                cancellationToken.ThrowIfCancellationRequested();
             }
         }
 
