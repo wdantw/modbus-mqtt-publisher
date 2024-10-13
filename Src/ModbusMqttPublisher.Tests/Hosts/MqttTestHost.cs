@@ -41,10 +41,6 @@ namespace ModbusMqttPublisher.Tests.Hosts
             await MosquittoServiceUtils.StartMosquitto(cancellationToken);
         }
 
-        // соответсвует внутренним преобрзованиям MQTTNet
-        public static byte[] EncodePayload(string message)
-            => Encoding.UTF8.GetBytes(message);
-
         public async Task PublishMessageWithRawClient(string relativeTopicName, string payload, bool retain, CancellationToken cancellationToken = default)
         {
             using var mqttClient = await MqttClientFactory.Create(cancellationToken).ConfigureAwait(false);
@@ -97,6 +93,15 @@ namespace ModbusMqttPublisher.Tests.Hosts
                 .AndDoes(x => tcs.TrySetResult());
 
             await tcs.Task.WithCancellation(cancellationToken);
+        }
+
+        public async Task EnqueMessageToMqttBus(string relativeTopicName, string message, CancellationToken cancellationToken)
+        {
+            await MqttBus.EnqueueMessage(
+                MqttPath.CombineTopicPath(MqttTestHost.BaseTopicPath, relativeTopicName),
+                Encoding.UTF8.GetBytes(message),
+                true,
+                cancellationToken);
         }
     }
 }

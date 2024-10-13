@@ -1,6 +1,5 @@
 ﻿using AutoFixture;
 using FluentAssertions;
-using ModbusMqttPublisher.Server.Common;
 using ModbusMqttPublisher.Tests.Common;
 using ModbusMqttPublisher.Tests.Hosts;
 using System.Threading.Tasks;
@@ -8,8 +7,8 @@ using Xunit;
 
 namespace ModbusMqttPublisher.Tests.Tests.Mqtt
 {
-    [Collection(nameof(MqttTestHostCollection))]
-    public class MqttBusTests
+    [Collection("MqttTestHostCollection")]
+    public class MqttBusTests : IClassFixture<MqttTestHost>
     {
         private readonly MqttTestHost _host;
 
@@ -74,11 +73,7 @@ namespace ModbusMqttPublisher.Tests.Tests.Mqtt
             var consumeTask = _host.ConsumeMessageWithRawClient(topicName, message, cancellationToken);
 
             // act
-            await _host.MqttBus.EnqueueMessage(
-                MqttPath.CombineTopicPath(MqttTestHost.BaseTopicPath, topicName),
-                MqttTestHost.EncodePayload(message),
-                true,
-                cancellationToken);
+            await _host.EnqueMessageToMqttBus(topicName, message, cancellationToken);
             await consumeTask;
 
             // assert
