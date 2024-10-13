@@ -29,7 +29,7 @@ namespace ModbusMqttPublisher.Server.Services
             client.ApplicationMessageReceivedAsync += Client_ApplicationMessageReceivedAsync;
 
             var topicFilter = new MqttTopicFilterBuilder()
-                .WithTopic(MqttPath.CombineTopicPath(options.Value.BaseTopicPath, "#"))
+                .WithTopic(MqttPath.CombineTopicPath(options.Value.BaseTopicPath, MqttPath.WildcardMultyLevel))
                 .Build();
 
             await client.SubscribeAsync(new [] { topicFilter });

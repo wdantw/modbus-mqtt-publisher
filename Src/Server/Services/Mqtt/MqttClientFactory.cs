@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Options;
+using ModbusMqttPublisher.Server.Common;
 using ModbusMqttPublisher.Server.Contracts.Configs;
 using MQTTnet;
 using MQTTnet.Extensions.ManagedClient;
@@ -45,7 +46,7 @@ namespace ModbusMqttPublisher.Server.Services.Mqtt
             // creating client
 
             var client = _mqttFactory.CreateManagedMqttClient();
-            await client.StartAsync(managmentClientOptions);
+            await client.StartAsync(managmentClientOptions).WithCancellation(cancellationToken).ConfigureAwait(false);
 			return client;
 		}
 	}

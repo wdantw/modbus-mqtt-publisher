@@ -9,7 +9,11 @@ namespace ModbusMqttPublisher.Server.Infrastructure
         {
             services
                 .AddSingleton<MqttFactory>()
-                .AddTransient<IMqttClientFactory, MqttClientFactory>();
+                .AddTransient<IMqttClientFactory, MqttClientFactory>()
+                .AddSingleton<MqttBus>()
+                .AddHostedService(sp => sp.GetRequiredService<MqttBus>())
+                .AddSingleton<IMqttBus>(sp => sp.GetRequiredService<MqttBus>())
+                ;
 
             return services;
         }

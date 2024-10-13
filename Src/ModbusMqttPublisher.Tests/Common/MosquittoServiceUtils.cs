@@ -3,9 +3,9 @@ using System.ServiceProcess;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace ModbusMqttPublisher.Tests.Tests.Mqtt
+namespace ModbusMqttPublisher.Tests.Common
 {
-    public static class Utils
+    public static class MosquittoServiceUtils
     {
         public const string MosquittoServiceName = "mosquitto";
 
@@ -14,7 +14,8 @@ namespace ModbusMqttPublisher.Tests.Tests.Mqtt
             if (!Enum.IsDefined(desiredStatus))
                 throw new ArgumentException($"{nameof(desiredStatus)} has invalid value {desiredStatus}");
 
-            await SpinUntil(() => {
+            await Utils.SpinUntil(() =>
+            {
                 serviceController.Refresh();
                 return serviceController.Status == desiredStatus;
             }, cancellationToken);
@@ -51,20 +52,6 @@ namespace ModbusMqttPublisher.Tests.Tests.Mqtt
 
             serviceController.Start();
             await serviceController.WaitForStatusAsync(ServiceControllerStatus.Running, cancellationToken);
-        }
-
-        public static Task SpinUntil(Func<bool> condition, CancellationToken cancellationToken)
-            => SpinUntil(condition, 100, cancellationToken);
-
-        public static async Task SpinUntil(Func<bool> condition, int timeoutMilliseconds, CancellationToken cancellationToken)
-        {
-            while (true)
-            {
-                if (condition())
-                    return;
-
-                await Task.Delay(timeoutMilliseconds, cancellationToken);
-            }
         }
     }
 }

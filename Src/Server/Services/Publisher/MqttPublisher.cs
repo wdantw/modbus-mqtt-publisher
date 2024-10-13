@@ -7,7 +7,7 @@ namespace ModbusMqttPublisher.Server.Services.Publisher
 {
     public class MqttPublisher : BackgroundService, IMqttPublisher
     {
-        private AwaiteableQueue<PublishCommand> pendingTopics = new();
+        private readonly AwaiteableQueue<PublishCommand> pendingTopics = new();
         private readonly ILogger<MqttPublisher> logger;
         private readonly IMqttClientFactory mqttClientFactory;
 
@@ -37,7 +37,7 @@ namespace ModbusMqttPublisher.Server.Services.Publisher
         {
             while (pendingTopics.TryDequeue(out var command))
             {
-                logger.LogInformation($"Публикация информации для топика {command.TopicName} = {command.ValueSorage}");
+                logger.LogInformation("Публикация информации для топика {TopicName} = {Value}", command.TopicName, command.ValueSorage);
 
                 var applicationMessage = new MqttApplicationMessageBuilder()
                     .WithTopic(command.TopicName)

@@ -1,5 +1,7 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using ModbusMqttPublisher.Tests.Common;
+using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -15,12 +17,19 @@ namespace ModbusMqttPublisher.Tests.Hosts
         {
         }
 
+        public virtual Task OnHostStartedAsync(CancellationToken cancellationToken)
+        {
+            return Task.CompletedTask;
+        }
+
         public async Task InitializeAsync()
         {
             var hostBuilder = Microsoft.Extensions.Hosting.Host.CreateDefaultBuilder();
             hostBuilder.ConfigureServices(ConfigureServices);
-            
-            _host = await hostBuilder.StartAsync();
+
+            var startCancellationToken = Utils.CreateCancellationToken(10000);
+            _host = await hostBuilder.StartAsync(startCancellationToken);
+            await OnHostStartedAsync(startCancellationToken);
         }
 
         public async Task DisposeAsync()
