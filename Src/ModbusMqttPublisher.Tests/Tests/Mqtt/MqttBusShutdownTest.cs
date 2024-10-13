@@ -23,15 +23,15 @@ namespace ModbusMqttPublisher.Tests.Tests.Mqtt
         {
             // arrange
             var fixture = new Fixture();
-            var messagesCount = 10;
-            var topicName = "test5";
+            var messagesCount = 100;
+            var topicNamePreffix = "test5/";
             var messages = Enumerable.Range(0, messagesCount).Select(i => fixture.Create<string>()).ToArray();
-            var cancellationToken = Utils.CreateCancellationToken(5000);
+            var cancellationToken = Utils.CreateCancellationToken(10000);
 
-            var consumeTasks = messages.Select(m => _host.ConsumeMessageWithRawClient(topicName, m, cancellationToken)).ToArray();
+            var consumeTasks = messages.Select(m => _host.ConsumeMessageWithRawClient(topicNamePreffix + m, m, cancellationToken)).ToArray();
 
             // act
-            await Task.WhenAll(messages.Select(m => _host.EnqueMessageToMqttBus(topicName, m, cancellationToken)));
+            await Task.WhenAll(messages.Select(m => _host.EnqueMessageToMqttBus(topicNamePreffix + m, m, cancellationToken)));
             await _host.DisposeAsync();
             await Task.WhenAll(consumeTasks);
 

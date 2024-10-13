@@ -74,7 +74,7 @@ namespace ModbusMqttPublisher.Tests.Hosts
                 return Task.CompletedTask;
             };
 
-            await mqttClient.SubscribeAsync(MqttPath.CombineTopicPath(BaseTopicPath, MqttPath.WildcardSingleLevel), MqttQualityOfServiceLevel.AtLeastOnce);
+            await mqttClient.SubscribeAsync(MqttPath.CombineTopicPath(BaseTopicPath, relativeTopicName), MqttQualityOfServiceLevel.AtLeastOnce);
 
             await tcs.Task.WithCancellation(cancellationToken).ConfigureAwait(false);
             await mqttClient.StopAsync().WithCancellation(cancellationToken).ConfigureAwait(false);
