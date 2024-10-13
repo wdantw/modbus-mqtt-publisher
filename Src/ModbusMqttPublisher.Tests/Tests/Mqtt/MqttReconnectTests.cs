@@ -12,7 +12,8 @@ using Xunit;
 
 namespace ModbusMqttPublisher.Tests.Tests.Mqtt
 {
-    public class MqttReconnectTests : IClassFixture<MqttTestHost>
+    [Collection(nameof(MqttTestHostCollection))]
+    public class MqttReconnectTests
     {
         private readonly MqttTestHost _host;
 
