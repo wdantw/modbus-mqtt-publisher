@@ -4,12 +4,12 @@ using ModbusMqttPublisher.Server.Contracts;
 using ModbusMqttPublisher.Server.Services.Modbus;
 using System.Globalization;
 using ModbusMqttPublisher.Server.Services.Queues;
-using ModbusMqttPublisher.Server.Services.Publisher;
 using ModbusMqttPublisher.Server.Services.Values;
+using ModbusMqttPublisher.Server.Services.Mqtt;
 
 namespace ModbusMqttPublisher.Server.Services
 {
-	public class ModbusQueueService : IQueueService
+    public class ModbusQueueService : IQueueService
     {
         public record ReadTaskRequest
         (
@@ -23,7 +23,7 @@ namespace ModbusMqttPublisher.Server.Services
         private readonly PortSettings settings;
         private readonly ILogger<ModbusQueueService> logger;
         private readonly IModbusClientFactory modbusFactory;
-        private readonly IMqttPublisher mqttPublisher;
+        private readonly IMqttBus mqttBus;
         private readonly IWriteQueueService writeQueueService;
 
         ReadQueue<DeviceSettings, RegisterSettings> readQueue;
@@ -32,31 +32,31 @@ namespace ModbusMqttPublisher.Server.Services
 			PortSettings settings,
 			ILogger<ModbusQueueService> logger,
 			IModbusClientFactory modbusFactory,
-			IMqttPublisher mqttPublisher,
+            IMqttBus mqttBus,
 			IWriteQueueService writeQueueService)
 		{
 			this.settings = settings;
 			this.logger = logger;
 			this.modbusFactory = modbusFactory;
-			this.mqttPublisher = mqttPublisher;
+			this.mqttBus = mqttBus;
 			this.writeQueueService = writeQueueService;
 
             readQueue = new(settings.Devices);
 		}
 
-        private void PublishValue(string topic, string value)
+        private async Task PublishValue(string topic, string value, CancellationToken cancellationToken)
         {
-			var valStorage = new PublishValueStorageString(value);
-			mqttPublisher.PublishTopic(new PublishCommand(topic, valStorage, false));
-		}
+            var valStorage = new PublishValueStorageString(value);
+            await mqttBus.EnqueueMessage(topic, valStorage.ToMqtt(), false, cancellationToken);
+        }
 
-		private void PublishValue(string topic, double value)
+        private async Task PublishValue(string topic, double value, CancellationToken cancellationToken)
         {
-			var valStorage = new PublishValueStorageDouble(value);
-			mqttPublisher.PublishTopic(new PublishCommand(topic, valStorage, false));
-		}
+            var valStorage = new PublishValueStorageDouble(value);
+            await mqttBus.EnqueueMessage(topic, valStorage.ToMqtt(), false, cancellationToken);
+        }
 
-		private void PublishPrifilerData(Profiler profiler)
+		private async Task PublishPrifilerData(Profiler profiler, CancellationToken cancellationToken)
         {
             profiler.Stop(out var globalTime, out var methodsTimes);
 
@@ -69,7 +69,7 @@ namespace ModbusMqttPublisher.Server.Services
 			var format = (NumberFormatInfo)NumberFormatInfo.CurrentInfo.Clone();
 			format.NumberDecimalSeparator = DefaultSettings.DecimalSeparator;
 
-            PublishValue(MqttPath.CombineTopicPath(basePath, $"time_global"), globalTime.ToString());
+            await PublishValue(MqttPath.CombineTopicPath(basePath, $"time_global"), globalTime.ToString(), cancellationToken);
 
 			var otherTime = globalTime;
 
@@ -86,22 +86,22 @@ namespace ModbusMqttPublisher.Server.Services
 					otherTime = otherTime - method.Value;
 				}
 
-				PublishValue(MqttPath.CombineTopicPath(basePath, $"percent_{methodName}"), method.Value.TotalMilliseconds / globalTime.TotalMilliseconds * 100.0);
-                PublishValue(MqttPath.CombineTopicPath(basePath, $"time_{methodName}"), method.Value.ToString());
+                await PublishValue(MqttPath.CombineTopicPath(basePath, $"percent_{methodName}"), method.Value.TotalMilliseconds / globalTime.TotalMilliseconds * 100.0, cancellationToken);
+                await PublishValue(MqttPath.CombineTopicPath(basePath, $"time_{methodName}"), method.Value.ToString(), cancellationToken);
 			}
 
-            PublishValue(MqttPath.CombineTopicPath(basePath, $"percent_other"), otherTime.TotalMilliseconds / globalTime.TotalMilliseconds * 100.0);
-            PublishValue(MqttPath.CombineTopicPath(basePath, $"time_other"), otherTime.ToString());
+            await PublishValue(MqttPath.CombineTopicPath(basePath, $"percent_other"), otherTime.TotalMilliseconds / globalTime.TotalMilliseconds * 100.0, cancellationToken);
+            await PublishValue(MqttPath.CombineTopicPath(basePath, $"time_other"), otherTime.ToString(), cancellationToken);
 
-			PublishValue(MqttPath.CombineTopicPath(basePath, $"stat_readComands"), statReadCommands.ToString());
-			PublishValue(MqttPath.CombineTopicPath(basePath, $"stat_WriteCommands"), statWriteCommands.ToString());
-			PublishValue(MqttPath.CombineTopicPath(basePath, $"stat_ReadDataBytes"), statReadDataBytes.ToString());
-			PublishValue(MqttPath.CombineTopicPath(basePath, $"stat_WriteDataBytes"), statWriteDataBytes.ToString());
+			await PublishValue(MqttPath.CombineTopicPath(basePath, $"stat_readComands"), statReadCommands.ToString(), cancellationToken);
+			await PublishValue(MqttPath.CombineTopicPath(basePath, $"stat_WriteCommands"), statWriteCommands.ToString(), cancellationToken);
+			await PublishValue(MqttPath.CombineTopicPath(basePath, $"stat_ReadDataBytes"), statReadDataBytes.ToString(), cancellationToken);
+            await PublishValue(MqttPath.CombineTopicPath(basePath, $"stat_WriteDataBytes"), statWriteDataBytes.ToString(), cancellationToken);
 
-			PublishValue(MqttPath.CombineTopicPath(basePath, $"stat_in_sec_readComands"), statReadCommands * 1.0 / globalTime.TotalSeconds);
-			PublishValue(MqttPath.CombineTopicPath(basePath, $"stat_in_sec_WriteCommands"), statWriteCommands * 1.0 / globalTime.TotalSeconds);
-			PublishValue(MqttPath.CombineTopicPath(basePath, $"stat_in_sec_ReadDataBytes"), statReadDataBytes * 1.0 / globalTime.TotalSeconds);
-			PublishValue(MqttPath.CombineTopicPath(basePath, $"stat_in_sec_WriteDataBytes"), statWriteDataBytes * 1.0 / globalTime.TotalSeconds);
+			await PublishValue(MqttPath.CombineTopicPath(basePath, $"stat_in_sec_readComands"), statReadCommands * 1.0 / globalTime.TotalSeconds, cancellationToken);
+			await PublishValue(MqttPath.CombineTopicPath(basePath, $"stat_in_sec_WriteCommands"), statWriteCommands * 1.0 / globalTime.TotalSeconds, cancellationToken);
+			await PublishValue(MqttPath.CombineTopicPath(basePath, $"stat_in_sec_ReadDataBytes"), statReadDataBytes * 1.0 / globalTime.TotalSeconds, cancellationToken);
+            await PublishValue(MqttPath.CombineTopicPath(basePath, $"stat_in_sec_WriteDataBytes"), statWriteDataBytes * 1.0 / globalTime.TotalSeconds, cancellationToken);
 
 			statReadCommands = 0;
 			statWriteCommands = 0;
@@ -126,7 +126,7 @@ namespace ModbusMqttPublisher.Server.Services
 				logger.LogDebug($"Новый цикл работы с портом");
 
                 if (profiler.Elapsed > TimeSpan.FromSeconds(5))
-                    PublishPrifilerData(profiler);
+                    await PublishPrifilerData(profiler, cancellationToken);
 
 				await modbusClient.CheckConnection(settings.ErrorSleepTimeout, cancellationToken);
 
@@ -154,7 +154,7 @@ namespace ModbusMqttPublisher.Server.Services
                             readTask.Value[^1].EndRegisterNumber - readTask.Value[0].Number,
                             readTask.Value);
 
-						await profiler.WrapMethodAsync("read", () => PerfomReadRequest(modbusClient, readRequest, profiler));
+						await profiler.WrapMethodAsync("read", () => PerfomReadRequest(modbusClient, readRequest, profiler, cancellationToken));
 						await profiler.WrapMethodAsync("sleep", () => Task.Delay(settings.MinSleepTimeout, cancellationToken));
 
 						continue;
@@ -175,7 +175,7 @@ namespace ModbusMqttPublisher.Server.Services
             }
         }
 
-        private async Task<bool> PerfomReadRequest(IModbusClient modbus, ReadTaskRequest readTask, Profiler profiler)
+        private async Task<bool> PerfomReadRequest(IModbusClient modbus, ReadTaskRequest readTask, Profiler profiler, CancellationToken cancellationToken)
         {
             var readTime = DateTime.Now;
 
@@ -219,7 +219,7 @@ namespace ModbusMqttPublisher.Server.Services
 
 					if (changed || reg.ForcePublish)
 					{
-						mqttPublisher.PublishTopic(new PublishCommand(reg.Name, reg.PublishValue));
+						await mqttBus.EnqueueMessage(reg.Name, reg.PublishValue.ToMqtt(), true, cancellationToken);
 					}
                 }
             }
@@ -263,7 +263,7 @@ namespace ModbusMqttPublisher.Server.Services
 
 					if (changed || reg.ForcePublish)
 					{
-						mqttPublisher.PublishTopic(new PublishCommand(reg.Name, reg.PublishValue));
+						await mqttBus.EnqueueMessage(reg.Name, reg.PublishValue.ToMqtt(), true, cancellationToken);
 					}
                 }
             }

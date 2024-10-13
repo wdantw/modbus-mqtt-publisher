@@ -3,8 +3,8 @@ using ModbusMqttPublisher.Server.Services;
 using ModbusMqttPublisher.Server.Services.Configuration;
 using ModbusMqttPublisher.Server.Services.Modbus;
 using NModbus;
-using ModbusMqttPublisher.Server.Services.Publisher;
 using ModbusMqttPublisher.Server.Infrastructure;
+using ModbusMqttPublisher.Server.Services.Mqtt;
 
 namespace ModbusMqttPublisher
 {
@@ -53,14 +53,10 @@ namespace ModbusMqttPublisher
             builder.Services.AddMqtt();
             builder.Services.AddSingleton<IWriteQueueService, WriteQueueService>();
 
-            builder.Services.AddSingleton<MqttPublisher>();
-            builder.Services.AddSingleton<IMqttPublisher>(p => p.GetRequiredService<MqttPublisher>());
-            builder.Services.AddHostedService(p => p.GetRequiredService<MqttPublisher>());
-
             builder.Services.AddSingleton<QueueManagerService>();
             builder.Services.AddSingleton<IQueueManagerService>(p => p.GetRequiredService<QueueManagerService>());
             builder.Services.AddHostedService(p => p.GetRequiredService<QueueManagerService>());
-            builder.Services.AddHostedService<MqttConsumer>();
+            builder.Services.AddSingleton<IMqttConsumer, MqttConsumer>();
             
             var app = builder.Build();
 

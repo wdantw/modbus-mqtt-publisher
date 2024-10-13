@@ -1,54 +1,26 @@
-﻿using MQTTnet.Client;
-using Microsoft.Extensions.Options;
-using ModbusMqttPublisher.Server.Contracts.Configs;
-using ModbusMqttPublisher.Server.Common;
-using ModbusMqttPublisher.Server.Services.Mqtt;
-using MQTTnet;
+﻿using ModbusMqttPublisher.Server.Services.Mqtt;
 
 namespace ModbusMqttPublisher.Server.Services
 {
-    public class MqttConsumer : BackgroundService
+    public class MqttConsumer : IMqttConsumer
     {
-        private readonly IOptions<MqttOptions> options;
         private readonly IWriteQueueService writeQueueService;
         private readonly IQueueManagerService queueManagerService;
-		private readonly IMqttClientFactory mqttClientFactory;
 
-		public MqttConsumer(IOptions<MqttOptions> options, IWriteQueueService writeQueueService, IQueueManagerService queueManagerService, IMqttClientFactory mqttClientFactory)
-		{
-			this.options = options;
-			this.writeQueueService = writeQueueService;
-			this.queueManagerService = queueManagerService;
-			this.mqttClientFactory = mqttClientFactory;
-		}
-
-		protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+        public MqttConsumer(IWriteQueueService writeQueueService, IQueueManagerService queueManagerService)
         {
-			using var client = await mqttClientFactory.Create(stoppingToken);
-
-            client.ApplicationMessageReceivedAsync += Client_ApplicationMessageReceivedAsync;
-
-            var topicFilter = new MqttTopicFilterBuilder()
-                .WithTopic(MqttPath.CombineTopicPath(options.Value.BaseTopicPath, MqttPath.WildcardMultyLevel))
-                .Build();
-
-            await client.SubscribeAsync(new [] { topicFilter });
-			await stoppingToken.WhenCancelled();
+            this.writeQueueService = writeQueueService;
+            this.queueManagerService = queueManagerService;
         }
 
-        private Task Client_ApplicationMessageReceivedAsync(MqttApplicationMessageReceivedEventArgs arg)
+        public Task Consume(string relativeTopicName, ArraySegment<byte> payload, CancellationToken cancellationToken)
         {
-            if (!arg.ApplicationMessage.Topic.StartsWith(options.Value.BaseTopicPath + MqttPath.TopicPathDelimeter))
-                return Task.CompletedTask;
-
-            var name = arg.ApplicationMessage.Topic[(options.Value.BaseTopicPath.Length + 1)..];
-
-            var serialName = queueManagerService.GetTopicSerialName(name);
+            var serialName = queueManagerService.GetTopicSerialName(relativeTopicName);
 
             if (serialName == null)
                 return Task.CompletedTask;
 
-            writeQueueService.AddWriteRequest(serialName, name, arg.ApplicationMessage.PayloadSegment);
+            writeQueueService.AddWriteRequest(serialName, relativeTopicName, payload);
 
             return Task.CompletedTask;
         }
