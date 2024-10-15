@@ -8,6 +8,7 @@ namespace ModbusMqttPublisher.Server.Domain
 
         protected override ReadRegisterGroup[] Items => _groups;
         protected override ReadDevice This => this;
+        public ReadRegisterGroup[] Groups => _groups;
 
         public ReadDevice(
             ModbusDeviceComplete devSettings,
@@ -18,7 +19,7 @@ namespace ModbusMqttPublisher.Server.Domain
                   priorityDownCallback: priorityDownCallback)
         {
             _groups = devSettings.Registers
-                .GroupBy(s => s.RegType)
+                .GroupBy(s => s.RegType?.GetRegisterType())
                 .Select(g => new ReadRegisterGroup(
                     regSettings: g.OrderBy(r => r.Number).ThenBy(r => r.Length ?? 1),
                     priorityUpCallback: i => ChildItemPriorityUp(i),

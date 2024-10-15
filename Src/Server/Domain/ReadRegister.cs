@@ -12,9 +12,11 @@ namespace ModbusMqttPublisher.Server.Domain
         // если null, значит никогда не читалось или было инвалидировано
         private DateTime? _lastReadTime = null;
 
+        public ushort StartNumber => _startNumber;
+
         public ReadRegister(ModbusRegisterCompleted settings, Action<ReadRegister> priorityUpCallback, Action<ReadRegister> priorityDownCallback)
         {
-            _startNumber = settings.Number ?? throw new ArgumentNullException("Не указан номер регистра");
+            _startNumber = settings.Number ?? throw new ArgumentException("Не указан номер регистра");
             _readPeriod = settings.ReadPeriod;
             _priorityUpCallback = priorityUpCallback;
             _priorityDownCallback = priorityDownCallback;

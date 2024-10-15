@@ -8,6 +8,7 @@ namespace ModbusMqttPublisher.Server.Domain
 
         protected override ReadDevice[] Items => _devices;
         protected override ReadPort This => this;
+        public ReadDevice[] Devices => _devices;
 
         public ReadPort(
             ModbusPortComplete portSettings,

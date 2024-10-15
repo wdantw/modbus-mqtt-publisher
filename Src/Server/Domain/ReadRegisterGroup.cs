@@ -7,6 +7,7 @@ namespace ModbusMqttPublisher.Server.Domain
         private readonly ReadRegister[] _registers;
         protected override ReadRegister[] Items => _registers;
         protected override ReadRegisterGroup This => this;
+        public ReadRegister[] Registers => _registers;
 
         public ReadRegisterGroup(
             IEnumerable<ModbusRegisterCompleted> regSettings,
