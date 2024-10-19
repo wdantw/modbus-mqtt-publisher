@@ -1,83 +1,59 @@
-﻿using ModbusMqttPublisher.Server.Contracts.Configs;
+﻿using ModbusMqttPublisher.Server.Contracts;
+using ModbusMqttPublisher.Server.Contracts.Configs;
 
 namespace ModbusMqttPublisher.Server.Domain
 {
-    public class ReadRegister : IReadPriorityComparable<ReadRegister>
+    public class ReadRegister : IReadPriorityComparable
     {
         private readonly ushort _startNumber;
+        private readonly ushort _endNumber;
         private readonly TimeSpan? _readPeriod;
-        private readonly Action<ReadRegister> _priorityUpCallback;
-        private readonly Action<ReadRegister> _priorityDownCallback;
+        private readonly IReadPriorityCallbacks<ReadRegister> _callbacks;
 
-        // если null, значит никогда не читалось или было инвалидировано
-        private DateTime? _lastReadTime = null;
+        // если Null, то чтения не требуется
+        private DateTime _nextReadTime;
 
         public ushort StartNumber => _startNumber;
+        public ushort EndNumber => _endNumber;
+        public DateTime NextReadTime => _nextReadTime;
 
-        public ReadRegister(ModbusRegisterCompleted settings, Action<ReadRegister> priorityUpCallback, Action<ReadRegister> priorityDownCallback)
+        public ReadRegister(ModbusRegisterCompleted settings, IReadPriorityCallbacks<ReadRegister> callbacks)
         {
             _startNumber = settings.Number ?? throw new ArgumentException("Не указан номер регистра");
+            _endNumber = (ushort)(_startNumber + (settings.RegType!.Value.GetRegisterFormat().SizeInRegisters() * (settings.Length ?? 1)));
             _readPeriod = settings.ReadPeriod;
-            _priorityUpCallback = priorityUpCallback;
-            _priorityDownCallback = priorityDownCallback;
+            _callbacks = callbacks;
+
+            _nextReadTime = DateTime.MinValue + (_readPeriod ?? TimeSpan.FromDays(365));
+        }
+
+        private void SetNextReadTime(DateTime nextReadTime, DateTime accessTime)
+        {
+            var compareRes = nextReadTime.CompareTo(_nextReadTime);
+            _nextReadTime = nextReadTime;
+
+            if (compareRes < 0)
+                _callbacks.ChildItemPriorityUp(this, accessTime);
+
+            if (compareRes > 0)
+                _callbacks.ChildItemPriorityDown(this, accessTime);
         }
 
         // необходимо вызывать после записи значения в устройство
         public void ValueWritedToDevice(DateTime writeTime)
         {
-            _lastReadTime = null;
-            _priorityUpCallback(this);
+            SetNextReadTime(DateTime.MinValue, writeTime);
         }
 
         // необходимо вызывать после чтения значения из устройства
         public void ValueReadedFromDevice(DateTime readTime)
         {
-            _lastReadTime = readTime;
-            _priorityDownCallback(this);
+            SetNextReadTime(_readPeriod.HasValue ? readTime + _readPeriod.Value : DateTime.MaxValue, readTime);
         }
 
-        // нуждается ли регистр в чтении.
-        private bool NeedReading()
-            => !_lastReadTime.HasValue || _readPeriod.HasValue;
-
-        public bool HasMorePriorityForRead(ReadRegister otherRegister)
+        public void AccessFailed(DateTime accessTime)
         {
-            if (!NeedReading())
-                return false;
-
-            if (!otherRegister.NeedReading())
-                return true;
-
-            // безусловный приоритет у регистров с невалидным значением
-            if (_lastReadTime.HasValue != otherRegister._lastReadTime.HasValue)
-                return !_lastReadTime.HasValue;
-
-            if (!_lastReadTime.HasValue)
-            {
-                // оба регистра с невалидными значениями
-
-                // переодически опрашиваемые регистры имеют приоритет
-                if (_readPeriod.HasValue != otherRegister._readPeriod.HasValue)
-                    return _readPeriod.HasValue;
-
-                if (!_readPeriod.HasValue)
-                {
-                    // оба непереодических и с невалидными значениями. приоритет не определен
-                    return true;
-                }
-                else
-                {
-                    // оба переоидическеие с невалидными значениями. приоритет у меньшего периода
-                    return _readPeriod.Value < otherRegister._readPeriod!.Value;
-                }
-            }
-            else
-            {
-                // оба регистра с валидными значениями
-                // для обоих регистров _readPeriod.HasValue == true. иначе бы вышли в начале метода при проверке NeedReading()
-
-                return _lastReadTime.Value + _readPeriod!.Value < otherRegister._lastReadTime!.Value + otherRegister._readPeriod!.Value;
-            }
+            _callbacks.ChildItemAccessFailed(this, accessTime);
         }
     }
 }

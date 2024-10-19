@@ -56,17 +56,19 @@ namespace ModbusMqttPublisher.Tests.Tests.Domain
             var settings1 = new ModbusRegisterCompleted()
             {
                 Number = 1,
-                ReadPeriod = period1.HasValue ? TimeSpan.FromSeconds(period1.Value) : null
+                ReadPeriod = period1.HasValue ? TimeSpan.FromSeconds(period1.Value) : null,
+                RegType = ConfigRegisterType.HoldingRegister,
             };
 
             var settings2 = new ModbusRegisterCompleted()
             {
                 Number = 2,
-                ReadPeriod = period2.HasValue ? TimeSpan.FromSeconds(period2.Value) : null
+                ReadPeriod = period2.HasValue ? TimeSpan.FromSeconds(period2.Value) : null,
+                RegType = ConfigRegisterType.HoldingRegister,
             };
 
-            var register1 = new ReadRegister(settings1, _ => { }, _ => { });
-            var register2 = new ReadRegister(settings2, _ => { }, _ => { });
+            var register1 = new ReadRegister(settings1, Substitute.For<IReadPriorityCallbacks<ReadRegister>>());
+            var register2 = new ReadRegister(settings2, Substitute.For<IReadPriorityCallbacks<ReadRegister>>());
 
             var testDate = new DateTime(2000, 10, 10);
 
@@ -99,23 +101,21 @@ namespace ModbusMqttPublisher.Tests.Tests.Domain
             // arrange
             var settings = new ModbusRegisterCompleted()
             {
-                Number = 1
+                Number = 1,
+                RegType = ConfigRegisterType.HoldingRegister,
             };
 
-            var upAction = Substitute.For<Action<ReadRegister>>();
-            var downAction = Substitute.For<Action<ReadRegister>>();
+            var callbacks = Substitute.For<IReadPriorityCallbacks<ReadRegister>>();
 
-            var register = new ReadRegister(
-                settings: settings,
-                priorityUpCallback: upAction,
-                priorityDownCallback: downAction);
+            var register = new ReadRegister(settings, callbacks);
 
             // act
             register.ValueWritedToDevice(DateTime.Now);
 
             // assert
-            upAction.Received(1);
-            downAction.Received(0);
+            callbacks.Received(1).ChildItemPriorityUp(Arg.Any<ReadRegister>(), Arg.Any<DateTime>());
+            callbacks.Received(0).ChildItemPriorityDown(Arg.Any<ReadRegister>(), Arg.Any<DateTime>());
+            callbacks.Received(0).ChildItemAccessFailed(Arg.Any<ReadRegister>(), Arg.Any<DateTime>());
         }
 
 
@@ -126,23 +126,21 @@ namespace ModbusMqttPublisher.Tests.Tests.Domain
             // arrange
             var settings = new ModbusRegisterCompleted()
             {
-                Number = 1
+                Number = 1,
+                RegType = ConfigRegisterType.HoldingRegister,
             };
 
-            var upAction = Substitute.For<Action<ReadRegister>>();
-            var downAction = Substitute.For<Action<ReadRegister>>();
+            var callbacks = Substitute.For<IReadPriorityCallbacks<ReadRegister>>();
 
-            var register = new ReadRegister(
-                settings: settings,
-                priorityUpCallback: upAction,
-                priorityDownCallback: downAction);
+            var register = new ReadRegister(settings, callbacks);
 
             // act
             register.ValueReadedFromDevice(DateTime.Now);
 
             // assert
-            upAction.Received(0);
-            downAction.Received(1);
+            callbacks.Received(0).ChildItemPriorityUp(Arg.Any<ReadRegister>(), Arg.Any<DateTime>());
+            callbacks.Received(1).ChildItemPriorityDown(Arg.Any<ReadRegister>(), Arg.Any<DateTime>());
+            callbacks.Received(0).ChildItemAccessFailed(Arg.Any<ReadRegister>(), Arg.Any<DateTime>());
         }
     }
 }

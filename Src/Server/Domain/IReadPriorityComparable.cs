@@ -1,7 +1,7 @@
 ﻿namespace ModbusMqttPublisher.Server.Domain
 {
-    public interface IReadPriorityComparable<T>
+    public interface IReadPriorityComparable
     {
-        bool HasMorePriorityForRead(T other);
+        DateTime NextReadTime { get; }
     }
 }

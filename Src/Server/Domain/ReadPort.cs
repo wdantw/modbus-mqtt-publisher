@@ -2,29 +2,27 @@
 
 namespace ModbusMqttPublisher.Server.Domain
 {
-    public class ReadPort : ReadComparableGroup<ReadPort, ReadDevice>
+    public class ReadPort : ReadComparableGroupBase<ReadDevice>
     {
         private readonly ReadDevice[] _devices;
 
         protected override ReadDevice[] Items => _devices;
-        protected override ReadPort This => this;
         public ReadDevice[] Devices => _devices;
 
-        public ReadPort(
-            ModbusPortComplete portSettings,
-            PriorityChangedDelegate<ReadPort> priorityUpCallback,
-            PriorityChangedDelegate<ReadPort> priorityDownCallback)
-            : base(
-                  priorityUpCallback: priorityUpCallback,
-                  priorityDownCallback: priorityDownCallback)
+        public ReadPort(ModbusPortComplete portSettings)
         {
             _devices = portSettings.Devices
-                .Select(d => new ReadDevice(
-                    devSettings: d,
-                    priorityUpCallback: i => ChildItemPriorityUp(i),
-                    priorityDownCallback: i => ChildItemPriorityDown(i)
-                    )
+                .Select(d => new ReadDevice(d, this)
                 ).ToArray();
+        }
+
+        public ReadTask? GetNextReadTask(
+            int maxRegisterCount,
+            int maxHoleSize,
+            DateTime currTime)
+        {
+            var nextGroup = EnsureMostPrioriyItem().EnsureMostPrioriyItem();
+            return nextGroup.GetReadTask(maxRegisterCount, maxHoleSize, currTime);
         }
     }
 }
