@@ -1,4 +1,5 @@
 ﻿using ModbusMqttPublisher.Server.Common;
+using ModbusMqttPublisher.Server.Contracts;
 using ModbusMqttPublisher.Server.Contracts.Configs;
 using System.Diagnostics.CodeAnalysis;
 
@@ -7,18 +8,21 @@ namespace ModbusMqttPublisher.Server.Domain
     public class ReadRegisterGroup : ReadComparableGroup<ReadRegisterGroup, ReadRegister>
     {
         private readonly ReadRegister[] _registers;
+
         protected override ReadRegister[] Items => _registers;
         protected override ReadRegisterGroup This => this;
         public ReadRegister[] Registers => _registers;
+        public RegisterType RegisterType { get; }
 
-        public ReadRegisterGroup(IEnumerable<ModbusRegisterCompleted> regSettings, IReadPriorityCallbacks<ReadRegisterGroup> callbacks)
+        public ReadRegisterGroup(IEnumerable<ModbusRegisterCompleted> regSettings, IReadPriorityCallbacks<ReadRegisterGroup> callbacks, string baseName)
             : base(callbacks)
         {
             _registers = regSettings
                 .Select(set =>
                     new ReadRegister(
                         settings: set,
-                        this
+                        this,
+                        baseName
                         )
                 )
                 .OrderBy(r => r.StartNumber)
@@ -27,6 +31,8 @@ namespace ModbusMqttPublisher.Server.Domain
 
             if (_registers.Length == 0)
                 throw new ApplicationException("Группа должна содержать хотя бы один регистр");
+
+            RegisterType = _registers.Select(r => r.RegisterType).Distinct().Single();
         }
 
         private struct RegistertWithIndex
@@ -58,11 +64,7 @@ namespace ModbusMqttPublisher.Server.Domain
                 => $"Reg {Index} (Number: {Register.StartNumber})";
         }
 
-        public ReadTask? GetReadTask(
-            int maxRegisterCount,
-            int maxHoleSize,
-            DateTime currTime
-            )
+        public ArraySegment<ReadRegister>? GetReadTask(int maxRegisterCount, int maxHoleSize, DateTime currTime)
         {
             var hottestRegister = EnsureMostPrioriyItem();
             
@@ -155,7 +157,7 @@ namespace ModbusMqttPublisher.Server.Domain
                 hotInRange = hotInRange || currRegister.Register == hottestRegister;
             }
 
-            return new ReadTask(_registers.GetSegment(startRegister.Index, lastRegister.Index - startRegister.Index + 1));
+            return _registers.GetSegment(startRegister.Index, lastRegister.Index - startRegister.Index + 1);
         }
     }
 }

@@ -13,13 +13,40 @@
 
     public static class RegisterFormatExtension
     {
-        public static byte SizeInRegisters(this RegisterFormat format)
+        public static RegisterFormat Validate(this RegisterFormat format)
         {
             switch (format)
             {
                 case RegisterFormat.Default:
+                case RegisterFormat.Uint32:
+                case RegisterFormat.Uint64:
                 case RegisterFormat.Int16:
+                case RegisterFormat.Int32:
+                case RegisterFormat.Int64:
                 case RegisterFormat.String:
+                    return format;
+                default:
+                    throw new ArgumentException($"Недопустимый формат регистра {format}");
+            }
+        }
+
+        public static byte SizeInRegistersNotBitReg(this RegisterFormat format, byte? length)
+        {
+            if (format == RegisterFormat.String)
+            {
+                if (!length.HasValue)
+                    throw new ArgumentException("Не указана длина строки для строкового регистра");
+
+                return length.Value;
+            }
+
+            if (length.HasValue)
+                throw new ArgumentException("Указана длина строки для нестрокового регистра");
+
+            switch (format)
+            {
+                case RegisterFormat.Default:
+                case RegisterFormat.Int16:
                     return 1;
                 case RegisterFormat.Uint32:
                 case RegisterFormat.Int32:

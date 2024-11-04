@@ -1,9 +1,9 @@
-﻿using ModbusMqttPublisher.Server.Contracts.Settings;
+﻿using ModbusMqttPublisher.Server.Domain;
 
 namespace ModbusMqttPublisher.Server.Services.Modbus
 {
-	public interface IModbusClientFactory
+    public interface IModbusClientFactory
 	{
-		IModbusClient Create(PortSettings settings, Profiler profiler);
+		IModbusClient Create(ReadPort settings, Profiler profiler);
 	}
 }

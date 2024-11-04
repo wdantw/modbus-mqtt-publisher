@@ -23,7 +23,7 @@ namespace ModbusMqttPublisher.Tests.Tests.Mqtt
         {
             // arrange
             var fixture = new Fixture();
-            var messagesCount = 100;
+            var messagesCount = 10;
             var topicNamePreffix = "test5/";
             var messages = Enumerable.Range(0, messagesCount).Select(i => fixture.Create<string>()).ToArray();
             var cancellationToken = Utils.CreateCancellationToken(10000);

@@ -1,12 +1,12 @@
 ﻿using ModbusMqttPublisher.Server.Contracts;
-using ModbusMqttPublisher.Server.Contracts.Settings;
+using ModbusMqttPublisher.Server.Domain;
 using NModbus;
 using NModbus.Serial;
 using System.IO.Ports;
 
 namespace ModbusMqttPublisher.Server.Services.Modbus
 {
-	public record ModbusRequest(
+    public record ModbusRequest(
 		byte SlaveAddress,
 		ushort StartRegister,
 		ushort RegisterCount,
@@ -23,7 +23,7 @@ namespace ModbusMqttPublisher.Server.Services.Modbus
 		SerialPort serialPort;
 		bool isFirstConnect = true;
 
-		public ModbusClient(PortSettings settings, Profiler profiler, IModbusFactory modbusFactory, ILogger<ModbusClient> logger)
+		public ModbusClient(ReadPort settings, Profiler profiler, IModbusFactory modbusFactory, ILogger<ModbusClient> logger)
 		{
 			this.logger = logger;
 

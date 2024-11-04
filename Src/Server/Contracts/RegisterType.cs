@@ -15,18 +15,22 @@
         InputRegister
     }
 
-    public static class RegisterTypeMetadata
-    {
-        public static RegisterType[] Types { get; }
-
-		static RegisterTypeMetadata()
-        {
-			Types = Enum.GetValues<RegisterType>();
-		}
-	}
-
     public static class RegisterTypeExtension
     {
+        public static RegisterType Validate(this RegisterType type)
+        {
+            switch (type)
+            {
+                case RegisterType.Coil:
+                case RegisterType.DiscreteInput:
+                case RegisterType.HoldingRegister:
+                case RegisterType.InputRegister:
+                    return type;
+                default:
+                    throw new ArgumentException($"Недоступсимый тип регистра {type}");
+            }
+        }
+
         public static bool IsBitReg(this RegisterType type)
         {
             switch (type)

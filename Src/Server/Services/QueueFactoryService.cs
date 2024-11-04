@@ -1,4 +1,4 @@
-﻿using ModbusMqttPublisher.Server.Contracts.Settings;
+﻿using ModbusMqttPublisher.Server.Domain;
 
 namespace ModbusMqttPublisher.Server.Services
 {
@@ -11,7 +11,7 @@ namespace ModbusMqttPublisher.Server.Services
             this.serviceProvider = serviceProvider;
         }
 
-        public IQueueService CreateQueue(PortSettings settings)
+        public IQueueService CreateQueue(ReadPort settings)
         {
             return ActivatorUtilities.CreateInstance<ModbusQueueService>(serviceProvider, settings);
         }

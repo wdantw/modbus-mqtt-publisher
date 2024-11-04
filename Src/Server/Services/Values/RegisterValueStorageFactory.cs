@@ -32,33 +32,52 @@ namespace ModbusMqttPublisher.Server.Services.Values
             }
         }
 
-        public static IRegisterValueStorageWithInConverter Create(RegisterSettings register)
+        public static IRegisterValueStorageWithInConverter Create(
+            double? scale,
+            int? precision,
+            string? decimalSeparator,
+            double? compareDiff,
+            RegisterType registerType,
+            RegisterFormat registerFormat)
         {
-            if (register.Scale.HasValue)
+            if (scale.HasValue)
             {
+                if (registerFormat == RegisterFormat.String)
+                    throw new Exception("Параметр Scale неприменим к строкам");
+
                 return new RegisterValueStorageDouble(
-                    register.Scale.Value,
-                    register.Precision,
-                    register.DecimalSeparator ?? DefaultSettings.DecimalSeparator,
-                    CreateNumeric(register.RegFormat),
-                    register.CompareDiff
+                    scale.Value,
+                    precision,
+                    decimalSeparator ?? DefaultSettings.DecimalSeparator,
+                    CreateNumeric(registerFormat),
+                    compareDiff
                     );
             }
             else
             {
-                if (register.RegType.IsBitReg())
+                if (precision.HasValue)
+                    throw new Exception("Параметр Precision применим только когда указан Scale");
+
+                if (!string.IsNullOrWhiteSpace(decimalSeparator))
+                    throw new Exception("Параметр DecimalSeparator применим только когда указан Scale");
+
+                if (compareDiff.HasValue)
+                    throw new Exception("Параметр CompareDiff применим только когда указан Scale");
+
+
+                if (registerType.IsBitReg())
                 {
                     return new RegisterValueStorageBool();
                 }
                 else
                 {
-                    if (register.RegFormat == RegisterFormat.String)
+                    if (registerFormat == RegisterFormat.String)
                     {
                         return new RegisterValueStorageString();
                     }
                     else
                     {
-                        return CreateNumeric(register.RegFormat);
+                        return CreateNumeric(registerFormat);
                     }
                 }
             }

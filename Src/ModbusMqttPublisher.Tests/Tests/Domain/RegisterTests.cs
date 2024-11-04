@@ -58,6 +58,7 @@ namespace ModbusMqttPublisher.Tests.Tests.Domain
                 Number = 1,
                 ReadPeriod = period1.HasValue ? TimeSpan.FromSeconds(period1.Value) : null,
                 RegType = ConfigRegisterType.HoldingRegister,
+                Name = "1",
             };
 
             var settings2 = new ModbusRegisterCompleted()
@@ -65,10 +66,11 @@ namespace ModbusMqttPublisher.Tests.Tests.Domain
                 Number = 2,
                 ReadPeriod = period2.HasValue ? TimeSpan.FromSeconds(period2.Value) : null,
                 RegType = ConfigRegisterType.HoldingRegister,
+                Name = "2",
             };
 
-            var register1 = new ReadRegister(settings1, Substitute.For<IReadPriorityCallbacks<ReadRegister>>());
-            var register2 = new ReadRegister(settings2, Substitute.For<IReadPriorityCallbacks<ReadRegister>>());
+            var register1 = new ReadRegister(settings1, Substitute.For<IReadPriorityCallbacks<ReadRegister>>(), "");
+            var register2 = new ReadRegister(settings2, Substitute.For<IReadPriorityCallbacks<ReadRegister>>(), "");
 
             var testDate = new DateTime(2000, 10, 10);
 
@@ -103,11 +105,12 @@ namespace ModbusMqttPublisher.Tests.Tests.Domain
             {
                 Number = 1,
                 RegType = ConfigRegisterType.HoldingRegister,
+                Name = "1",
             };
 
             var callbacks = Substitute.For<IReadPriorityCallbacks<ReadRegister>>();
 
-            var register = new ReadRegister(settings, callbacks);
+            var register = new ReadRegister(settings, callbacks, "");
 
             // act
             register.ValueWritedToDevice(DateTime.Now);
@@ -128,11 +131,12 @@ namespace ModbusMqttPublisher.Tests.Tests.Domain
             {
                 Number = 1,
                 RegType = ConfigRegisterType.HoldingRegister,
+                Name = "1",
             };
 
             var callbacks = Substitute.For<IReadPriorityCallbacks<ReadRegister>>();
 
-            var register = new ReadRegister(settings, callbacks);
+            var register = new ReadRegister(settings, callbacks, "");
 
             // act
             register.ValueReadedFromDevice(DateTime.Now);

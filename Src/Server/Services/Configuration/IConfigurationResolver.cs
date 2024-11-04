@@ -1,9 +1,9 @@
-﻿using ModbusMqttPublisher.Server.Contracts.Settings;
+﻿using ModbusMqttPublisher.Server.Domain;
 
 namespace ModbusMqttPublisher.Server.Services.Configuration
 {
     public interface IConfigurationResolver
     {
-        PortSettings[] ResolveConfigs();
+        ReadPort[] ResolveConfigs();
     }
 }

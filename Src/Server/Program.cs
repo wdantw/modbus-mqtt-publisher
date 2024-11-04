@@ -28,8 +28,8 @@ namespace ModbusMqttPublisher
 
             var userConfigFile = Environment.GetEnvironmentVariable("MODBUS_MQTT_PUBLISHER_USERCONFIG");
 
-			builder.Configuration
-                .AddJsonFile(userConfigFile);
+            if (!string.IsNullOrWhiteSpace(userConfigFile))
+                builder.Configuration.AddJsonFile(userConfigFile);
 
 			// Add services to the container.
 

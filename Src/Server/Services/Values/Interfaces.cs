@@ -8,6 +8,12 @@
 	public interface IRegisterValueStorage : IPublishValueSorage
 	{
 		bool FromModbus(ReadOnlySpan<ushort> data);
+		
+		/// <summary>
+		/// Преобразует данные, полученные из modbus в коенчный формат
+		/// </summary>
+		/// <param name="data"></param>
+		/// <returns>Возвращает true если данные были изменены</returns>
 		bool FromModbus(ReadOnlySpan<bool> data);
 	}
 

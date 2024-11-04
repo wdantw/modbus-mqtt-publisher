@@ -1,9 +1,9 @@
-﻿using ModbusMqttPublisher.Server.Contracts.Settings;
+﻿using ModbusMqttPublisher.Server.Domain;
 
 namespace ModbusMqttPublisher.Server.Services
 {
     public interface IQueueFactoryService
     {
-        public IQueueService CreateQueue(PortSettings settings);
+        public IQueueService CreateQueue(ReadPort settings);
     }
 }

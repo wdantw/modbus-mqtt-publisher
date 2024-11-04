@@ -36,7 +36,7 @@ namespace ModbusMqttPublisher.Tests.Tests.Domain
             var callbacks = Substitute.For<IReadPriorityCallbacks<ReadDevice>>();
 
             // act
-            var dev = new ReadDevice(devSettings1, callbacks);
+            var dev = new ReadDevice(devSettings1, callbacks, null, "COM1");
 
             // assert
             dev.Groups.Length.Should().Be(2);
