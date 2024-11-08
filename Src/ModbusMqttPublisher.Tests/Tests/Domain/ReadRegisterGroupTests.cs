@@ -244,6 +244,58 @@ namespace ModbusMqttPublisher.Tests.Tests.Domain
             readTask.Should().BeEquivalentTo(expectedReadTask);
         }
 
+        [Fact]
+        public void TestReadTaskSingleRegister()
+        {
+            // arrange
+            var settings1 = new ModbusRegisterCompleted[]
+            {
+                new() { Number = 1, ReadPeriod = TimeSpan.FromSeconds(100), RegType = ConfigRegisterType.HoldingRegister  , Name = "1" },
+                new() { Number = 2, ReadPeriod = TimeSpan.FromSeconds(1), RegType = ConfigRegisterType.HoldingRegister  , Name = "2" },
+                new() { Number = 3, ReadPeriod = TimeSpan.FromSeconds(100), RegType = ConfigRegisterType.HoldingRegister  , Name = "3" },
+                new() { Number = 4, ReadPeriod = TimeSpan.FromSeconds(100), RegType = ConfigRegisterType.HoldingRegister  , Name = "4" }
+            };
 
+            var callbacks = Substitute.For<IReadPriorityCallbacks<ReadRegisterGroup>>();
+            var group1 = new ReadRegisterGroup(settings1, callbacks, "");
+
+            var currentTime = DateTime.Now;
+            foreach (var r in group1.Registers) r.ValueReadedFromDevice(currentTime);
+            callbacks.ClearReceivedCalls();
+
+            var expectedReadTask = group1.Registers.GetSegment(1, 1);
+
+            // act
+            var readTask = group1.GetReadTask(10, 10, currentTime.AddSeconds(1));
+
+            // arrange
+            readTask.Should().BeEquivalentTo(expectedReadTask);
+        }
+
+        [Fact]
+        public void TestReadTaskNoneRegister()
+        {
+            // arrange
+            var settings1 = new ModbusRegisterCompleted[]
+            {
+                new() { Number = 1, ReadPeriod = TimeSpan.FromSeconds(100), RegType = ConfigRegisterType.HoldingRegister  , Name = "1" },
+                new() { Number = 2, ReadPeriod = TimeSpan.FromSeconds(200), RegType = ConfigRegisterType.HoldingRegister  , Name = "2" },
+                new() { Number = 3, ReadPeriod = TimeSpan.FromSeconds(300), RegType = ConfigRegisterType.HoldingRegister  , Name = "3" },
+                new() { Number = 4, ReadPeriod = TimeSpan.FromSeconds(400), RegType = ConfigRegisterType.HoldingRegister  , Name = "4" }
+            };
+
+            var callbacks = Substitute.For<IReadPriorityCallbacks<ReadRegisterGroup>>();
+            var group1 = new ReadRegisterGroup(settings1, callbacks, "");
+
+            var currentTime = DateTime.Now;
+            foreach (var r in group1.Registers) r.ValueReadedFromDevice(currentTime);
+            callbacks.ClearReceivedCalls();
+
+            // act
+            var readTask = group1.GetReadTask(10, 10, currentTime.AddSeconds(1));
+
+            // arrange
+            readTask.Should().BeNull();
+        }
     }
 }

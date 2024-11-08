@@ -1,4 +1,5 @@
 ﻿using FluentAssertions;
+using ModbusMqttPublisher.Server.Contracts;
 using ModbusMqttPublisher.Server.Contracts.Configs;
 using ModbusMqttPublisher.Server.Contracts.Configs.Enums;
 using ModbusMqttPublisher.Server.Domain;
@@ -147,5 +148,145 @@ namespace ModbusMqttPublisher.Tests.Tests.Domain
             callbacks.Received(1).ChildItemPriorityDown(Arg.Any<ReadRegister>(), Arg.Any<DateTime>());
             callbacks.Received(0).ChildItemAccessFailed(Arg.Any<ReadRegister>(), Arg.Any<DateTime>());
         }
+
+        [Fact]
+        public void Create()
+        {
+            // arrange
+            var settings = new ModbusRegisterCompleted()
+            {
+                Number = 11,
+                RegType = ConfigRegisterType.HoldingRegister64,
+                Name = "qwe",
+                ForcePublish = true,
+                ReadPeriod = TimeSpan.FromSeconds(1),
+                WbEvents = true,
+
+                Tags = null,
+
+                CompareDiff = null,
+                DecimalSeparator = null,
+                Length = null,
+                Precision = null,
+                Scale = null,
+            };
+
+            var callbacks = Substitute.For<IReadPriorityCallbacks<ReadRegister>>();
+
+            // act
+            var register = new ReadRegister(settings, callbacks, "asd");
+
+            // assert
+            register.StartNumber.Should().Be(11);
+            register.EndNumber.Should().Be(15);
+            register.SizeInRegisters.Should().Be(4);
+            register.RegisterType.Should().Be(RegisterType.HoldingRegister);
+            register.Name.Should().Be("asd/qwe");
+        }
+
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void ForcePublish(bool forcePublish)
+        {
+            // arrange
+            var settings = new ModbusRegisterCompleted()
+            {
+                Number = 11,
+                RegType = ConfigRegisterType.Coil,
+                Name = "qwe",
+                ForcePublish = forcePublish,
+                ReadPeriod = TimeSpan.FromSeconds(1),
+                WbEvents = true,
+
+                Tags = null,
+
+                CompareDiff = null,
+                DecimalSeparator = null,
+                Length = null,
+                Precision = null,
+                Scale = null,
+            };
+
+            var callbacks = Substitute.For<IReadPriorityCallbacks<ReadRegister>>();
+            var register = new ReadRegister(settings, callbacks, "asd");
+
+            // act
+            var res1 = register.ReadFromModbus(DateTime.Now, new bool[] { true });
+            var res2 = register.ReadFromModbus(DateTime.Now, new bool[] { true });
+
+            // assert
+            res1.Should().BeTrue();
+            res2.Should().Be(forcePublish);
+        }
+
+        [Fact]
+        public void ReadPeriod()
+        {
+            // arrange
+            var settings = new ModbusRegisterCompleted()
+            {
+                Number = 11,
+                RegType = ConfigRegisterType.HoldingRegister64,
+                Name = "qwe",
+                ForcePublish = true,
+                ReadPeriod = TimeSpan.FromSeconds(10),
+                WbEvents = true,
+
+                Tags = null,
+
+                CompareDiff = null,
+                DecimalSeparator = null,
+                Length = null,
+                Precision = null,
+                Scale = null,
+            };
+
+            var now = DateTime.Now;
+            var callbacks = Substitute.For<IReadPriorityCallbacks<ReadRegister>>();
+            var register = new ReadRegister(settings, callbacks, "asd");
+
+            // act
+            register.ValueReadedFromDevice(now);
+            var nextReadTime = register.NextReadTime;
+
+            // assert
+            nextReadTime.Should().Be(now + TimeSpan.FromSeconds(10));
+        }
+
+        [Fact]
+        public void ReadAfterWrite()
+        {
+            // arrange
+            var settings = new ModbusRegisterCompleted()
+            {
+                Number = 11,
+                RegType = ConfigRegisterType.HoldingRegister64,
+                Name = "qwe",
+                ForcePublish = true,
+                ReadPeriod = TimeSpan.FromSeconds(10),
+                WbEvents = true,
+
+                Tags = null,
+
+                CompareDiff = null,
+                DecimalSeparator = null,
+                Length = null,
+                Precision = null,
+                Scale = null,
+            };
+
+            var now = DateTime.Now;
+            var callbacks = Substitute.For<IReadPriorityCallbacks<ReadRegister>>();
+            var register = new ReadRegister(settings, callbacks, "asd");
+
+            // act
+            register.ValueWritedToDevice(now);
+            var nextReadTime = register.NextReadTime;
+
+            // assert
+            nextReadTime.Should().Be(DateTime.MinValue);
+        }
+
     }
 }
