@@ -1,4 +1,5 @@
 ﻿using ModbusMqttPublisher.Server.Contracts.Configs;
+using ModbusMqttPublisher.Server.Contracts.Configs.Enums;
 
 namespace ModbusMqttPublisher.Server.Services.Configuration
 {

@@ -1,6 +1,7 @@
 ﻿using ModbusMqttPublisher.Server.Common;
 using ModbusMqttPublisher.Server.Contracts;
 using ModbusMqttPublisher.Server.Contracts.Configs;
+using ModbusMqttPublisher.Server.Contracts.Configs.Enums;
 using ModbusMqttPublisher.Server.Services.Values;
 
 namespace ModbusMqttPublisher.Server.Domain

@@ -1,6 +1,7 @@
 ﻿using FluentAssertions;
 using ModbusMqttPublisher.Server.Common;
 using ModbusMqttPublisher.Server.Contracts.Configs;
+using ModbusMqttPublisher.Server.Contracts.Configs.Enums;
 using ModbusMqttPublisher.Server.Domain;
 using NSubstitute;
 using System;
