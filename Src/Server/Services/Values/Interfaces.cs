@@ -2,23 +2,36 @@
 {
 	public interface IPublishValueSorage
 	{
+		/// <summary>
+		/// Возвращает данные, в формате для Mqtt
+		/// </summary>
+		/// <returns></returns>
 		byte[] ToMqtt();
 	}
 
 	public interface IRegisterValueStorage : IPublishValueSorage
 	{
-		bool FromModbus(ReadOnlySpan<ushort> data);
-		
-		/// <summary>
-		/// Преобразует данные, полученные из modbus в коенчный формат
-		/// </summary>
-		/// <param name="data"></param>
-		/// <returns>Возвращает true если данные были изменены</returns>
-		bool FromModbus(ReadOnlySpan<bool> data);
+        /// <summary>
+        /// Сохраняет данные, полученные из modbus.
+        /// </summary>
+        /// <param name="data">данные из modbus</param>
+        /// <returns>Возвращает true если данные были изменены</returns>
+        bool FromModbus(ReadOnlySpan<ushort> data);
+
+        /// <summary>
+        /// Сохраняет данные полученные из modbus.
+        /// </summary>
+        /// <param name="data">данные из modbus</param>
+        /// <returns>Возвращает true если данные были изменены</returns>
+        bool FromModbus(ReadOnlySpan<bool> data);
 	}
 
 	public interface INumericRegisterValueStorage : IRegisterValueStorage
 	{
+		/// <summary>
+		/// Возвращает данные, преобразованные к числу с плавающей точкой.
+		/// </summary>
+		/// <returns></returns>
 		double ToDouble();
 	}
 

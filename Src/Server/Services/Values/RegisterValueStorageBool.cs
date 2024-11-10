@@ -6,7 +6,17 @@
 
 		public bool FromModbus(ReadOnlySpan<ushort> data) => throw new NotImplementedException();
 
-		public bool FromModbus(ReadOnlySpan<bool> data) => TypeUtils.FromModbus(ref _value, data[0]);
+		public bool FromModbus(ReadOnlySpan<bool> data)
+		{
+			var newValue = data[0];
+
+			if (newValue == _value)
+				return false;
+
+			_value = newValue;
+
+			return true;
+		}
 
 		public byte[] ToMqtt() => MqttStringConverter.ToMqtt(_value.ToString());
 
