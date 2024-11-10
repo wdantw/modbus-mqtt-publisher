@@ -10,97 +10,81 @@ namespace ModbusMqttPublisher.Server.Services.Values
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void WriteDataLE(Span<ushort> destination, ulong value)
         {
+            if (!BitConverter.IsLittleEndian)
+                value = ReverseWords(value);
+
             if (!BitConverter.TryWriteBytes(MemoryMarshal.Cast<ushort, byte>(destination), value))
                 throw new Exception("Буфер недостаточного размера для записи значения");
-
-            if (!BitConverter.IsLittleEndian)
-            {
-                destination.Slice(0, sizeof(ulong) / sizeof(ushort)).Reverse();
-            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void WriteDataBE(Span<ushort> destination, ulong value)
         {
+            if (BitConverter.IsLittleEndian)
+                value = ReverseWords(value);
+
             if (!BitConverter.TryWriteBytes(MemoryMarshal.Cast<ushort, byte>(destination), value))
                 throw new Exception("Буфер недостаточного размера для записи значения");
-
-            if (BitConverter.IsLittleEndian)
-            {
-                destination.Slice(0, sizeof(ulong) / sizeof(ushort)).Reverse();
-            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void WriteDataLE(Span<ushort> destination, long value)
         {
+            if (!BitConverter.IsLittleEndian)
+                value = ReverseWords(value);
+
             if (!BitConverter.TryWriteBytes(MemoryMarshal.Cast<ushort, byte>(destination), value))
                 throw new Exception("Буфер недостаточного размера для записи значения");
-
-            if (!BitConverter.IsLittleEndian)
-            {
-                destination.Slice(0, sizeof(long) / sizeof(ushort)).Reverse();
-            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void WriteDataBE(Span<ushort> destination, long value)
         {
+            if (BitConverter.IsLittleEndian)
+                value = ReverseWords(value);
+
             if (!BitConverter.TryWriteBytes(MemoryMarshal.Cast<ushort, byte>(destination), value))
                 throw new Exception("Буфер недостаточного размера для записи значения");
-
-            if (BitConverter.IsLittleEndian)
-            {
-                destination.Slice(0, sizeof(long) / sizeof(ushort)).Reverse();
-            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void WriteDataLE(Span<ushort> destination, uint value)
         {
+            if (!BitConverter.IsLittleEndian)
+                value = ReverseWords(value);
+
             if (!BitConverter.TryWriteBytes(MemoryMarshal.Cast<ushort, byte>(destination), value))
                 throw new Exception("Буфер недостаточного размера для записи значения");
-
-            if (!BitConverter.IsLittleEndian)
-            {
-                destination.Slice(0, sizeof(uint) / sizeof(ushort)).Reverse();
-            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void WriteDataBE(Span<ushort> destination, uint value)
         {
+            if (BitConverter.IsLittleEndian)
+                value = ReverseWords(value);
+
             if (!BitConverter.TryWriteBytes(MemoryMarshal.Cast<ushort, byte>(destination), value))
                 throw new Exception("Буфер недостаточного размера для записи значения");
-
-            if (BitConverter.IsLittleEndian)
-            {
-                destination.Slice(0, sizeof(uint) / sizeof(ushort)).Reverse();
-            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void WriteDataLE(Span<ushort> destination, int value)
         {
+            if (!BitConverter.IsLittleEndian)
+                value = ReverseWords(value);
+
             if (!BitConverter.TryWriteBytes(MemoryMarshal.Cast<ushort, byte>(destination), value))
                 throw new Exception("Буфер недостаточного размера для записи значения");
-
-            if (!BitConverter.IsLittleEndian)
-            {
-                destination.Slice(0, sizeof(int) / sizeof(ushort)).Reverse();
-            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void WriteDataBE(Span<ushort> destination, int value)
         {
+            if (BitConverter.IsLittleEndian)
+                value = ReverseWords(value);
+
             if (!BitConverter.TryWriteBytes(MemoryMarshal.Cast<ushort, byte>(destination), value))
                 throw new Exception("Буфер недостаточного размера для записи значения");
-
-            if (BitConverter.IsLittleEndian)
-            {
-                destination.Slice(0, sizeof(int) / sizeof(ushort)).Reverse();
-            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

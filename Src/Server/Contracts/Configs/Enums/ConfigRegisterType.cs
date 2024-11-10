@@ -28,8 +28,8 @@
         InputRegisterS = RegisterType.InputRegister | RegisterFormat.Int16 << _TypeBitCount,
         InputRegisterS32 = RegisterType.InputRegister | RegisterFormat.Int32 << _TypeBitCount,
         InputRegisterS64 = RegisterType.InputRegister | RegisterFormat.Int64 << _TypeBitCount,
-        InputRegisterS32ИУ = RegisterType.InputRegister | RegisterFormat.Int32BE << _TypeBitCount,
-        InputRegisterS64ИУ = RegisterType.InputRegister | RegisterFormat.Int64BE << _TypeBitCount,
+        InputRegisterS32BE = RegisterType.InputRegister | RegisterFormat.Int32BE << _TypeBitCount,
+        InputRegisterS64BE = RegisterType.InputRegister | RegisterFormat.Int64BE << _TypeBitCount,
         InputRegisterStr = RegisterType.InputRegister | RegisterFormat.String << _TypeBitCount,
     }
 }

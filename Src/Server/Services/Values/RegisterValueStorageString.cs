@@ -51,7 +51,10 @@ namespace ModbusMqttPublisher.Server.Services.Values
 			var strData = MqttStringConverter.FromMqtt(mqttData);
 			var modbusBytes = MemoryMarshal.Cast<ushort, byte>(modbusData);
 
-			Encoding.ASCII.GetBytes(strData.Substring(0, modbusBytes.Length), modbusBytes);
+			if (strData.Length > modbusBytes.Length)
+				strData = strData.Substring(0, modbusBytes.Length);
+
+            Encoding.ASCII.GetBytes(strData, modbusBytes);
 			for (int i = strData.Length; i < modbusBytes.Length; i++)
 				modbusBytes[i] = 0;
 		}
