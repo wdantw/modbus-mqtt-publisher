@@ -11,8 +11,8 @@ namespace ModbusMqttPublisher.Tests.Tests.Domain
     public class ValueTests
     {
         [Theory]
-        [MemberData(nameof(FromModbusNumericTestData))]
-        public void FromModbusNumericTest(RegisterFormat format, ushort[] data, string result, byte? length = null)
+        [MemberData(nameof(FromModbusNumericTestData), true)]
+        public void FromModbusNumericTest(RegisterFormat format, ushort[] data, string result)
         {
             // arrange
             var value = RegisterValueStorageFactory.Create(
@@ -33,7 +33,7 @@ namespace ModbusMqttPublisher.Tests.Tests.Domain
         }
 
         [Theory]
-        [MemberData(nameof(FromModbusNumericTestData))]
+        [MemberData(nameof(FromModbusNumericTestData), false)]
         public void ToModbusNumericTest(RegisterFormat format, ushort[] data, string result, byte? length = null)
         {
             // arrange
@@ -55,7 +55,7 @@ namespace ModbusMqttPublisher.Tests.Tests.Domain
             buffer.Should().BeEquivalentTo(data);
         }
 
-        public static IEnumerable<object[]> FromModbusNumericTestData()
+        public static IEnumerable<object[]> FromModbusNumericTestData(bool fromTest = false)
         {
             yield return new object[] { RegisterFormat.Default, new ushort[] { 0xFF85 }, "65413" };
             yield return new object[] { RegisterFormat.Int16, new ushort[] { 0xFF85 }, "-123" };
@@ -69,7 +69,10 @@ namespace ModbusMqttPublisher.Tests.Tests.Domain
             yield return new object[] { RegisterFormat.Uint64BE, new ushort[] { 0xFF85, 0xFFF0, 0xFFFF, 0xFFF1 }.Reverse().ToArray(), "18442803424034619269" };
             yield return new object[] { RegisterFormat.Int64BE, new ushort[] { 0xFF85, 0xFFF0, 0xFFFF, 0xFFF1 }.Reverse().ToArray(), "-3940649674932347" };
 
-            yield return new object[] { RegisterFormat.String, new ushort[] { 0x3130, 0x3332, 0x4120, 0x0042, 0x0000 }, "0123 AB", (byte)5 };
+            if (fromTest)
+                yield return new object[] { RegisterFormat.String, new ushort[] { 0x3130, 0x3332, 0x4120, 0x0042, 0x0000 }, "0123 AB" };
+            else
+                yield return new object[] { RegisterFormat.String, new ushort[] { 0x3130, 0x3332, 0x4120, 0x0042, 0x0000 }, "0123 AB", (byte)5 };
         }
     }
 }
