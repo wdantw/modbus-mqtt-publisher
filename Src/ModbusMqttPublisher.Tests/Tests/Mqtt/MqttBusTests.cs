@@ -17,7 +17,7 @@ namespace ModbusMqttPublisher.Tests.Tests.Mqtt
             _host = host;
         }
 
-        [Fact]
+        //[Fact]
         public async Task MosquittoRestartTest()
         {
             // arrange

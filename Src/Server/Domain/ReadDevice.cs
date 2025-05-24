@@ -47,14 +47,15 @@ namespace ModbusMqttPublisher.Server.Domain
         {
             _maxReadBit = devSettings.MaxReadBit ?? DefaultSettings.MaxReadBit;
             if (_maxReadBit <= 0) throw new ArgumentException("MaxReadBit должен быть больше 0");
+
             _maxReadRegisters = devSettings.MaxReadRegisters ?? DefaultSettings.MaxReadRegisters;
             if (_maxReadRegisters <= 0) throw new ArgumentException("MaxReadRegisters должен быть больше 0");
+
             _maxBitHole = devSettings.MaxBitHole ?? DefaultSettings.MaxBitHole;
             if (_maxBitHole <= 0) throw new ArgumentException("MaxBitHole должен быть больше 0");
+
             _maxRegHole = devSettings.MaxRegHole ?? DefaultSettings.MaxRegHole;
             if (_maxRegHole <= 0) throw new ArgumentException("MaxRegHole должен быть больше 0");
-
-
 
             ReadRetryCount = devSettings.ReadRetryCount ?? DefaultSettings.DefaultReadRetryCount;
 
@@ -62,9 +63,13 @@ namespace ModbusMqttPublisher.Server.Domain
             var defaultDeviceName = MqttPath.TopicPathDelimeter + MqttPath.CombineTopicPath(portName ?? serialName, $"Dev{SlaveAddress}");
 
             _minSleepTimeout = devSettings.MinSleepTimeout;
+
             _errorSleepTimeout = devSettings.ErrorSleepTimeout ?? DefaultSettings.DefaultErrorSleepTimeout;
+            
             ReadTimeout = devSettings.ReadTimeout ?? DefaultSettings.DefaultPortTimeout;
+            
             WriteTimeout = devSettings.WriteTimeout ?? DefaultSettings.DefaultPortTimeout;
+            
             Name = string.IsNullOrWhiteSpace(devSettings.Name) ? defaultDeviceName : MqttPath.CombineTopicPath(portName, devSettings.Name);
 
             _groups = devSettings.Registers

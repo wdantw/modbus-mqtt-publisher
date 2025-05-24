@@ -17,12 +17,17 @@ namespace ModbusMqttPublisher.Server.Domain
         private DateTime _nextReadTime;
 
         public ushort StartNumber { get; }
+        
         public ushort EndNumber { get; }
+        
         public byte SizeInRegisters { get; }
 
         public string Name { get; }
+        
         public RegisterType RegisterType { get; }
+        
         public IIncomeRegisterConverter IncomeValueConverter => _registerValue;
+        
         public IPublishValueSorage PublishValue => _registerValue;
 
         public DateTime NextReadTime => _nextReadTime;

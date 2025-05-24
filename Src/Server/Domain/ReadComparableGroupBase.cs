@@ -1,15 +1,21 @@
 ﻿
 namespace ModbusMqttPublisher.Server.Domain
 {
+    /// <summary>
+    /// Базовый класс для группы элементов
+    /// </summary>
+    /// <typeparam name="TChildType"></typeparam>
     public abstract class ReadComparableGroupBase<TChildType> : IReadPriorityComparable, IReadPriorityCallbacks<TChildType>
         where TChildType : class, IReadPriorityComparable
     {
         private TChildType? _mostPriorityItem = null;
 
         protected abstract TChildType[] Items { get; }
+        
         public virtual DateTime NextReadTime => EnsureMostPrioriyItem().NextReadTime;
 
         protected virtual void ThisPriorityUp(DateTime accessTime) { }
+
         protected virtual void ThisPriorityDown(DateTime accessTime) { }
 
         protected virtual void ChildItemPriorityUp(TChildType changedItem, DateTime accessTime)
@@ -64,12 +70,13 @@ namespace ModbusMqttPublisher.Server.Domain
         {
             if (_mostPriorityItem == null)
             {
-                _mostPriorityItem = Items[0];
+                var mostPriprity = Items[0];
                 foreach (var item in Items.Skip(1))
                 {
-                    if (item.HasMorePriorityForRead(_mostPriorityItem))
-                        _mostPriorityItem = item;
+                    if (item.HasMorePriorityForRead(mostPriprity))
+                        mostPriprity = item;
                 }
+                _mostPriorityItem = mostPriprity;
             }
             return _mostPriorityItem;
         }
