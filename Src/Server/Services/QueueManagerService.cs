@@ -57,50 +57,59 @@ namespace ModbusMqttPublisher.Server.Services
 
         public async Task Run(CancellationToken stoppingToken)
         {
-            // TODO: цикл исключен,  так как в случае ошибки происходит непрерывный перезапуск
-            //while (!stoppingToken.IsCancellationRequested)
+            CancellationTokenSource combinedCts;
+
+            lock (synchObject)
             {
-                CancellationTokenSource combinedCts;
-
-                lock (synchObject)
-                {
-                    combinedCts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken, currentCancellationTokenSource.Token);
-                }
-
-                settings = settingsService.ResolveConfigs();
-                var tasks = settings
-                    .Select(s => RunSingle(s, combinedCts.Token))
-                    .Where(t => t != null)
-                    .ToArray();
-
-                _portsByRegName = settings
-                    .SelectMany(p => p.Devices.SelectMany(d => d.Groups).SelectMany(g => g.Registers).Select(r => (Reg: r, Port: p)))
-                    .ToFrozenDictionary(x => x.Reg.Name, x => x.Port.SerialName);
-
-                await Task.WhenAll(tasks);
+                combinedCts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken, currentCancellationTokenSource.Token);
             }
+
+            settings = settingsService.ResolveConfigs();
+
+            var tasks = settings
+                .Select(s => RunSingle(s, combinedCts.Token))
+                .Where(t => t != null)
+                .ToArray();
+
+            _portsByRegName = settings
+                .SelectMany(p => p.Devices.SelectMany(d => d.Groups).SelectMany(g => g.Registers).Select(r => (Reg: r, Port: p)))
+                .ToFrozenDictionary(x => x.Reg.Name, x => x.Port.SerialName);
+
+            await Task.WhenAll(tasks);
         }
 
         private async Task RunSingle(ReadPort settings, CancellationToken cancellationToken)
         {
-            //TODO: добавить Replay
-            try
+            while (true)
             {
-                if (cancellationToken.IsCancellationRequested)
+                try
+                {
+                    if (cancellationToken.IsCancellationRequested)
+                        return;
+
+                    var queue = queueFactoryService.CreateQueue(settings);
+
+                    await queue.Run(cancellationToken);
                     return;
+                }
+                catch (OperationCanceledException)
+                {
+                    logger.LogInformation($"Очередь {settings.SerialName} остановлена");
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, $"Очередь {settings.SerialName} прекратила работу из за ошибки");
+                }
 
-                var queue = queueFactoryService.CreateQueue(settings);
-
-                await queue.Run(cancellationToken);
-            }
-            catch (OperationCanceledException)
-            {
-                logger.LogInformation($"Очередь {settings.SerialName} остановлена");
-                return;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Очередь {settings.SerialName} прекратила работу из за ошибки");
+                try
+                {
+                    await Task.Delay(settings.ErrorSleepTimeout, cancellationToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    return;
+                }
             }
         }
 

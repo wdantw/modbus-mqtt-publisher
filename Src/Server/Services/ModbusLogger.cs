@@ -11,38 +11,24 @@ namespace ModbusMqttPublisher.Server.Services
             this.logger = logger;
         }
 
-        public void Log(LoggingLevel level, string message)
+        private static LogLevel ConverLogLevel(LoggingLevel level)
         {
             switch (level)
             {
-                case LoggingLevel.Trace:
-                    logger.LogTrace(message);
-                    break;
-                case LoggingLevel.Debug:
-                    logger.LogDebug(message);
-                    break;
-                case LoggingLevel.Information:
-                    logger.LogInformation(message);
-                    break;
-                case LoggingLevel.Warning:
-                    logger.LogWarning(message);
-                    break;
-                case LoggingLevel.Error:
-                    logger.LogError(message);
-                    break;
-                case LoggingLevel.Critical:
-                    logger.LogCritical(message);
-                    break;
-                default:
-                    logger.LogInformation(message);
-                    break;
+                case LoggingLevel.Trace: return LogLevel.Trace;
+                case LoggingLevel.Debug: return LogLevel.Debug;
+                case LoggingLevel.Information: return LogLevel.Information;
+                case LoggingLevel.Warning: return LogLevel.Warning;
+                case LoggingLevel.Error: return LogLevel.Error;
+                case LoggingLevel.Critical: return LogLevel.Critical;
+                default: return LogLevel.Information;
             }
-
         }
+
+        public void Log(LoggingLevel level, string message)
+            => logger.Log(ConverLogLevel(level), message);
 
         public bool ShouldLog(LoggingLevel level)
-        {
-            return true;
-        }
+            => logger.IsEnabled(ConverLogLevel(level));
     }
 }
