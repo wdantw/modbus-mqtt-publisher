@@ -12,7 +12,6 @@ namespace ModbusMqttPublisher.Server.Services
         private readonly IHost host;
 
         private readonly object synchObject = new object();
-        private CancellationTokenSource currentCancellationTokenSource;
         private ReadPort[]? settings = null;
         private FrozenDictionary<string, string>? _portsByRegName = null;
 
@@ -22,8 +21,6 @@ namespace ModbusMqttPublisher.Server.Services
             this.logger = logger;
             this.queueFactoryService = queueFactoryService;
             this.host = host;
-
-            currentCancellationTokenSource = new CancellationTokenSource();
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -41,6 +38,7 @@ namespace ModbusMqttPublisher.Server.Services
                 logger.LogError(ex, "Работа службы остановлена из за ошибки");
             }
 
+            // служба должна остановиться при завершении из за ошибки
             await host.StopAsync();
         }
 
@@ -57,18 +55,10 @@ namespace ModbusMqttPublisher.Server.Services
 
         public async Task Run(CancellationToken stoppingToken)
         {
-            CancellationTokenSource combinedCts;
-
-            lock (synchObject)
-            {
-                combinedCts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken, currentCancellationTokenSource.Token);
-            }
-
             settings = settingsService.ResolveConfigs();
 
             var tasks = settings
-                .Select(s => RunSingle(s, combinedCts.Token))
-                .Where(t => t != null)
+                .Select(s => RunSingle(s, stoppingToken))
                 .ToArray();
 
             _portsByRegName = settings
@@ -111,16 +101,6 @@ namespace ModbusMqttPublisher.Server.Services
                     return;
                 }
             }
-        }
-
-        public void ReloadSettings()
-        {
-            //lock (synchObject)
-            //{
-            //    var curr = currentCancellationTokenSource;
-            //    currentCancellationTokenSource = new CancellationTokenSource();
-            //    curr.Cancel();
-            //}
         }
     }
 }
