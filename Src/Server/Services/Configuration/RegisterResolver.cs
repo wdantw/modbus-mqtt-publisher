@@ -1,5 +1,5 @@
-﻿using ModbusMqttPublisher.Server.Contracts;
-using ModbusMqttPublisher.Server.Contracts.Configs;
+﻿using ModbusMqttPublisher.Server.Contracts.Configs;
+using ModbusMqttPublisher.Server.Contracts.Configs.Enums;
 
 namespace ModbusMqttPublisher.Server.Services.Configuration
 {
@@ -86,28 +86,7 @@ namespace ModbusMqttPublisher.Server.Services.Configuration
             if (!register.RegType.HasValue)
                 throw new Exception("Для вычисления размера регистра должен быть указан RegType");
 
-            var type = register.RegType.Value.GetRegisterType();
-            var format = register.RegType.Value.GetRegisterFormat();
-            byte length = 1;
-
-            if (format.FormatHasLength())
-            {
-                if (!register.Length.HasValue)
-                    throw new Exception("Для данного формата регистра необходимо указать длину");
-
-                length = register.Length.Value;
-            }
-            else
-            {
-                if (register.Length.HasValue)
-                    throw new Exception("Для данного формата регистра наличие длины недопустимо");
-            }
-
-            var size = length * format.SizeInRegisters();
-            if (size > byte.MaxValue)
-                throw new Exception($"Размер регистра не может превышать значение {byte.MaxValue}");
-
-            return (byte)size;
+            return register.RegType.Value.SizeInRegisters(register.Length);
         }
 
         private static ModbusRegisterCompleted ResolveSingleRegister(ModbusRegisterCompleted config, ushort number, string name)

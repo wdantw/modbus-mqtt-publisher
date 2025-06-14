@@ -1,9 +1,9 @@
-﻿using MQTTnet.Client;
+﻿using MQTTnet.Extensions.ManagedClient;
 
 namespace ModbusMqttPublisher.Server.Services.Mqtt
 {
-	public interface IMqttClientFactory
+    public interface IMqttClientFactory
 	{
-		Task<IMqttClient> Create(CancellationToken cancellationToken);
+		Task<IManagedMqttClient> Create(CancellationToken cancellationToken);
 	}
 }

@@ -1,24 +1,23 @@
 ﻿namespace ModbusMqttPublisher.Server.Services.Values
 {
-    public class RegisterValueStorageLong : INumericRegisterValueStorageWithInConverter
-	{
-		long _value;
+    public class RegisterValueStorageLong : RegisterValueStorageNumericBase<long>
+    {
+        protected override double AsDouble(long value)
+            => value;
 
-		public double ToDouble() => _value;
+        protected override string AsString(long value)
+            => value.ToString();
 
-		public bool FromModbus(ReadOnlySpan<ushort> data) => TypeUtils.FromModbus(ref _value, data, BitConverter.ToInt64);
+        protected override long FromDouble(double value)
+            => (long)Math.Round(value);
 
-		public bool FromModbus(ReadOnlySpan<bool> data) => throw new NotImplementedException();
+        protected override long FromString(string value)
+            => long.Parse(value);
 
-		public byte[] ToMqtt() => MqttStringConverter.ToMqtt(_value.ToString());
+        protected override long ReadFromMudbus(ReadOnlySpan<ushort> modbusData)
+            => RegBitConverter.ReadDataInt64LE(modbusData);
 
-		public override string ToString() => _value.ToString();
-
-
-		public void ToModbus(ReadOnlySpan<byte> mqttData, Span<ushort> modbusData) => TypeUtils.ConvertToModbus(mqttData, modbusData, long.Parse, BitConverter.TryWriteBytes);
-
-		public void ToModbus(ReadOnlySpan<byte> mqttData, Span<bool> modbusData) => throw new NotImplementedException();
-
-		public void ToModbus(double doubleValue, Span<ushort> modbusData) => TypeUtils.ConvertToModbus((long)Math.Round(doubleValue), modbusData, BitConverter.TryWriteBytes);
-	}
+        protected override void WriteFromMudbus(Span<ushort> modbusData, long value)
+            => RegBitConverter.WriteDataLE(modbusData, value);
+    }
 }

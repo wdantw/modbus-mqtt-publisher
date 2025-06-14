@@ -12,27 +12,29 @@
   "ModbusPorts": [
     {
       "SerialName": "COM3",
-      "BaudRate": 19200,
+      "BaudRate": 115200,
       "DataBits": 8,
       "Parity": "None",
-      "StopBits": "One",
+      "StopBits": "Two",
       "AllowWbEvents": false,
       "Devices": [
         {
-          "SlaveAddress": 1,
-          "Name": "Sensors/SHT20_1/",
-          "ParentTypeName":  "SHT20"
+          "SlaveAddress": 116,
+          "Name": "Sensors/Rel1/",
+          "ParentTypeName":  "WB-MR6CU v.2"
         }
       ],
       "ErrorSleepTimeout": "00:00:05.000",
       "_MaxReadRegisters": 1,
-      "_MaxReadBit": 1
+      "_MaxReadBit": 1,
+      "_MaxRegHole":  0,
+      "_MaxBitHole":  0
     }
   ],
 
   "ModbusModifiers": [
     { "Tags": "sensors", "ReadPeriod": "00:00:00.05" },
-    { "Tags": "relay", "ReadPeriod": "00:00:30.000" },
+    { "Tags": "relay", "ReadPeriod": "00:00:00.005" },
     { "Tags": "button", "ReadPeriod": "00:00:00.05" }
   ]
 }

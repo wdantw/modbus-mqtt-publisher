@@ -1,14 +1,14 @@
 {
   "Logging": {
     "LogLevel": {
-      //"Default": "Trace"
+      //"Default": "Debug"
     }
   },
 
   "MqttOptions" :  {
-    "TcpAddress":  "192.168.50.45"
+    "_TcpAddress":  "192.168.50.45",
+    "TcpAddress":  "localhost"
   },
-
    "ModbusPorts": [
     {
       "SerialName": "COM3",

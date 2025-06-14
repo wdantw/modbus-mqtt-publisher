@@ -1,31 +1,52 @@
 ﻿using Microsoft.Extensions.Options;
+using ModbusMqttPublisher.Server.Common;
 using ModbusMqttPublisher.Server.Contracts.Configs;
 using MQTTnet;
-using MQTTnet.Client;
+using MQTTnet.Extensions.ManagedClient;
+using MQTTnet.Server;
 
 namespace ModbusMqttPublisher.Server.Services.Mqtt
 {
 	public class MqttClientFactory : IMqttClientFactory
 	{
-		private readonly IOptions<MqttOptions> options;
+		private readonly IOptions<MqttOptions> _options;
+		private readonly MqttFactory _mqttFactory;
 
-		public MqttClientFactory(IOptions<MqttOptions> options)
+        public MqttClientFactory(
+            IOptions<MqttOptions> options,
+            MqttFactory mqttFactory)
+        {
+            _options = options;
+            _mqttFactory = mqttFactory;
+        }
+
+        public async Task<IManagedMqttClient> Create(CancellationToken cancellationToken)
 		{
-			this.options = options;
-		}
+            var options = _options.Value;
 
-		public async Task<IMqttClient> Create(CancellationToken cancellationToken)
-		{
-			var mqttFactory = new MqttFactory();
+            // client option
 
-			var client = mqttFactory.CreateMqttClient();
+			var clientOptionsBuilder = _mqttFactory.CreateClientOptionsBuilder();
+            if (!string.IsNullOrWhiteSpace(options.TcpAddress))
+                clientOptionsBuilder.WithTcpServer(options.TcpAddress);
 
-			var connectOptions = mqttFactory.CreateClientOptionsBuilder()
-				.WithTcpServer(options.Value.TcpAddress)
-				.Build();
+            // managment client options
 
-			await client.ConnectAsync(connectOptions, cancellationToken);
+            var managmentClientOptions = new ManagedMqttClientOptions();
 
+            if (options.AutoReconnectDelay.HasValue)
+                managmentClientOptions.AutoReconnectDelay = options.AutoReconnectDelay.Value;
+
+            if (options.ConnectionCheckInterval.HasValue)
+                managmentClientOptions.ConnectionCheckInterval = options.ConnectionCheckInterval.Value;
+
+            managmentClientOptions.ClientOptions = clientOptionsBuilder.Build();
+            managmentClientOptions.PendingMessagesOverflowStrategy = MqttPendingMessagesOverflowStrategy.DropOldestQueuedMessage;
+
+            // creating client
+
+            var client = _mqttFactory.CreateManagedMqttClient();
+            await client.StartAsync(managmentClientOptions).WithCancellation(cancellationToken).ConfigureAwait(false);
 			return client;
 		}
 	}

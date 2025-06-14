@@ -1,15 +1,14 @@
-using MQTTnet;
 using ModbusMqttPublisher.Server.Contracts.Configs;
 using ModbusMqttPublisher.Server.Services;
 using ModbusMqttPublisher.Server.Services.Configuration;
 using ModbusMqttPublisher.Server.Services.Modbus;
 using NModbus;
+using ModbusMqttPublisher.Server.Infrastructure;
 using ModbusMqttPublisher.Server.Services.Mqtt;
-using ModbusMqttPublisher.Server.Services.Publisher;
 
 namespace ModbusMqttPublisher
 {
-	public class Program
+    public class Program
     {
         private static bool IsFakeModbus()
         {
@@ -29,8 +28,8 @@ namespace ModbusMqttPublisher
 
             var userConfigFile = Environment.GetEnvironmentVariable("MODBUS_MQTT_PUBLISHER_USERCONFIG");
 
-			builder.Configuration
-                .AddJsonFile(userConfigFile);
+            if (!string.IsNullOrWhiteSpace(userConfigFile))
+                builder.Configuration.AddJsonFile(userConfigFile);
 
 			// Add services to the container.
 
@@ -50,19 +49,14 @@ namespace ModbusMqttPublisher
                 builder.Services.AddTransient<IModbusClientFactory, FakeFactory>();
             else
 				builder.Services.AddTransient<IModbusClientFactory, ModbusClientFactory>();
-            builder.Services.AddTransient<IMqttClientFactory, MqttClientFactory>();
 			builder.Services.AddSingleton<IModbusFactory>(p => new ModbusFactory(null, true, p.GetRequiredService<ModbusLogger>()));
-            builder.Services.AddSingleton<MqttFactory>();
+            builder.Services.AddMqtt();
             builder.Services.AddSingleton<IWriteQueueService, WriteQueueService>();
-
-            builder.Services.AddSingleton<MqttPublisher>();
-            builder.Services.AddSingleton<IMqttPublisher>(p => p.GetRequiredService<MqttPublisher>());
-            builder.Services.AddHostedService(p => p.GetRequiredService<MqttPublisher>());
 
             builder.Services.AddSingleton<QueueManagerService>();
             builder.Services.AddSingleton<IQueueManagerService>(p => p.GetRequiredService<QueueManagerService>());
             builder.Services.AddHostedService(p => p.GetRequiredService<QueueManagerService>());
-            builder.Services.AddHostedService<MqttConsumer>();
+            builder.Services.AddSingleton<IMqttConsumer, MqttConsumer>();
             
             var app = builder.Build();
 

@@ -1,8 +1,8 @@
-﻿using ModbusMqttPublisher.Server.Contracts.Settings;
+﻿using ModbusMqttPublisher.Server.Domain;
 
 namespace ModbusMqttPublisher.Server.Services.Modbus
 {
-	public class ModbusClientFactory : IModbusClientFactory
+    public class ModbusClientFactory : IModbusClientFactory
 	{
 		IServiceProvider serviceProvider;
 
@@ -11,7 +11,7 @@ namespace ModbusMqttPublisher.Server.Services.Modbus
 			this.serviceProvider = serviceProvider;
 		}
 
-		public IModbusClient Create(PortSettings settings, Profiler profiler)
+		public IModbusClient Create(ReadPort settings, Profiler profiler)
 		{
 			return ActivatorUtilities.CreateInstance<ModbusClient>(serviceProvider, settings, profiler);
 		}

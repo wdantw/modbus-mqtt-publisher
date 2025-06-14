@@ -1,9 +1,6 @@
-﻿using System.Threading;
-using System.Threading.Tasks;
-
-namespace ModbusMqttPublisher.Server.Common
+﻿namespace ModbusMqttPublisher.Server.Common
 {
-	public static class AsyncExtensions
+    public static class AsyncExtensions
 	{
 		public static async Task WhenCancelled(this CancellationToken cancellationToken)
 		{

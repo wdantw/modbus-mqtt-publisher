@@ -1,5 +1,6 @@
-﻿using ModbusMqttPublisher.Server.Contracts.Settings;
+﻿using ModbusMqttPublisher.Server.Domain;
 using ModbusMqttPublisher.Server.Services.Configuration;
+using System.Collections.Frozen;
 
 namespace ModbusMqttPublisher.Server.Services
 {
@@ -12,7 +13,8 @@ namespace ModbusMqttPublisher.Server.Services
 
         private readonly object synchObject = new object();
         private CancellationTokenSource currentCancellationTokenSource;
-        private PortSettings[]? settings = null;
+        private ReadPort[]? settings = null;
+        private FrozenDictionary<string, string>? _portsByRegName = null;
 
         public QueueManagerService(IConfigurationResolver settingsService, ILogger<QueueManagerService> logger, IQueueFactoryService queueFactoryService, IHost host)
         {
@@ -44,22 +46,13 @@ namespace ModbusMqttPublisher.Server.Services
 
         public string? GetTopicSerialName(string topicName)
         {
-            if (settings == null)
+            if (_portsByRegName == null)
                 return null;
 
-            foreach(var port in settings)
-            {
-                foreach(var  dev in port.Devices)
-                {
-                    foreach(var reg in dev.Registers)
-                    {
-                        if (reg.Name == topicName)
-                            return port.SerialName;
-                    }
-                }
-            }
+            if (!_portsByRegName.TryGetValue(topicName, out var serialName))
+                return null;
 
-            return null;
+            return serialName;
         }
 
         public async Task Run(CancellationToken stoppingToken)
@@ -80,11 +73,15 @@ namespace ModbusMqttPublisher.Server.Services
                     .Where(t => t != null)
                     .ToArray();
 
+                _portsByRegName = settings
+                    .SelectMany(p => p.Devices.SelectMany(d => d.Groups).SelectMany(g => g.Registers).Select(r => (Reg: r, Port: p)))
+                    .ToFrozenDictionary(x => x.Reg.Name, x => x.Port.SerialName);
+
                 await Task.WhenAll(tasks);
             }
         }
 
-        private async Task RunSingle(PortSettings settings, CancellationToken cancellationToken)
+        private async Task RunSingle(ReadPort settings, CancellationToken cancellationToken)
         {
             //TODO: добавить Replay
             try

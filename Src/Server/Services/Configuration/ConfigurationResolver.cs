@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.Options;
 using ModbusMqttPublisher.Server.Contracts.Configs;
-using ModbusMqttPublisher.Server.Contracts.Settings;
+using ModbusMqttPublisher.Server.Domain;
 
 namespace ModbusMqttPublisher.Server.Services.Configuration
 {
@@ -51,7 +51,7 @@ namespace ModbusMqttPublisher.Server.Services.Configuration
 			this.globalModifires = globalModifires;
 		}
 
-		public PortSettings[] ResolveConfigs()
+		public ReadPort[] ResolveConfigs()
         {
             var typeMap = new Dictionary<string, ITypeResolver>();
 
@@ -67,25 +67,25 @@ namespace ModbusMqttPublisher.Server.Services.Configuration
             }
 
             if (ports.Value == null)
-                return Array.Empty<PortSettings>();
+                return Array.Empty<ReadPort>();
 
             var modifires = globalModifires.Value?.AsEnumerable() ?? Array.Empty<ModbusRegisterModifier>();
 
             var restul = ports.Value
                 .Select(p => new ModbusPortComplete().MergePort(p, typeMap, modifires))
-                .Select(p => p.MapToSettings())
+                .Select(p => new ReadPort(p))
                 .ToArray();
 
 			var dublicateNames = restul
-                .SelectMany(p => p.Devices)
+                .SelectMany(x => x.Devices)
+                .SelectMany(x => x.Groups)
                 .SelectMany(d => d.Registers.Select(r => r.Name))
                 .GroupBy(rname => rname)
-                .Where(r => r.Take(2).Count() > 1)
+                .Where(r => r.Skip(1).Any())
                 .Select(g => g.Key)
                 .ToArray();
 
-
-			if (restul.SelectMany(p => p.Devices).SelectMany(d => d.Registers.Select(r => r.Name)).GroupBy(r => r).Any(r => r.Take(2).Count() > 1))
+			if (dublicateNames.Length > 0)
                 throw new Exception($"Имеются неуникальные имена регистров: {string.Join(", ", dublicateNames)}");
 
             return restul;
