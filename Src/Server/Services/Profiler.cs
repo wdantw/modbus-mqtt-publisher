@@ -9,8 +9,6 @@ namespace ModbusMqttPublisher.Server.Services
 
 		public TimeSpan Elapsed => globalStopwatch.Elapsed;
 
-
-
 		public void Start()
 		{
 			globalStopwatch.Restart();

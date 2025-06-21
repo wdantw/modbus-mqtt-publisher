@@ -7,20 +7,23 @@ namespace ModbusMqttPublisher.Server.Domain
 {
     public class ReadPort : ReadComparableGroupBase<ReadDevice>
     {
-        public int BaudRate { get; }
-        public int DataBits { get; }
-        public Parity Parity { get; }
-        public StopBits StopBits { get; }
-
-
-        public TimeSpan ErrorSleepTimeout { get; }
         private readonly TimeSpan _readTimeout;
         private readonly TimeSpan _writeTimeout;
         private readonly ReadDevice[] _devices;
-
         private DateTime? _nextAllowedAccessTime;
 
+        public int BaudRate { get; }
+
+        public int DataBits { get; }
+
+        public Parity Parity { get; }
+
+        public StopBits StopBits { get; }
+
+        public TimeSpan ErrorSleepTimeout { get; }
+
         protected override ReadDevice[] Items => _devices;
+
         public ReadDevice[] Devices => _devices;
 
         public TimeSpan MinSleepTimeout { get; }
@@ -39,8 +42,11 @@ namespace ModbusMqttPublisher.Server.Domain
         public ReadPort(ModbusPortComplete portSettings)
         {
             SerialName = portSettings.SerialName.AssertNotEmpty();
+            
             DataBits = portSettings.DataBits ?? DefaultSettings.DataBits;
+            
             Parity = portSettings.Parity ?? DefaultSettings.Parity;
+            
             StopBits = portSettings.StopBits ?? DefaultSettings.StopBits;
 
             _devices = portSettings.Devices
@@ -48,9 +54,13 @@ namespace ModbusMqttPublisher.Server.Domain
                 ).ToArray();
 
             BaudRate = portSettings.BaudRate ?? DefaultSettings.BaudRate;
+            
             MinSleepTimeout = portSettings.MinSleepTimeout ?? DefaultSettings.MinSleepTimeout(BaudRate);
+            
             ErrorSleepTimeout = portSettings.ErrorSleepTimeout ?? DefaultSettings.DefaultErrorSleepTimeout;
+            
             _readTimeout = portSettings.ReadTimeout ?? DefaultSettings.DefaultPortTimeout;
+            
             _writeTimeout = portSettings.WriteTimeout ?? DefaultSettings.DefaultPortTimeout;
         }
 

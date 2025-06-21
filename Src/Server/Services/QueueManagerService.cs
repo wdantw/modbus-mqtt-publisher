@@ -12,7 +12,6 @@ namespace ModbusMqttPublisher.Server.Services
         private readonly IHost host;
 
         private readonly object synchObject = new object();
-        private CancellationTokenSource currentCancellationTokenSource;
         private ReadPort[]? settings = null;
         private FrozenDictionary<string, string>? _portsByRegName = null;
 
@@ -22,8 +21,6 @@ namespace ModbusMqttPublisher.Server.Services
             this.logger = logger;
             this.queueFactoryService = queueFactoryService;
             this.host = host;
-
-            currentCancellationTokenSource = new CancellationTokenSource();
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -41,6 +38,7 @@ namespace ModbusMqttPublisher.Server.Services
                 logger.LogError(ex, "Работа службы остановлена из за ошибки");
             }
 
+            // служба должна остановиться при завершении из за ошибки
             await host.StopAsync();
         }
 
@@ -57,61 +55,52 @@ namespace ModbusMqttPublisher.Server.Services
 
         public async Task Run(CancellationToken stoppingToken)
         {
-            // TODO: цикл исключен,  так как в случае ошибки происходит непрерывный перезапуск
-            //while (!stoppingToken.IsCancellationRequested)
-            {
-                CancellationTokenSource combinedCts;
+            settings = settingsService.ResolveConfigs();
 
-                lock (synchObject)
-                {
-                    combinedCts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken, currentCancellationTokenSource.Token);
-                }
+            var tasks = settings
+                .Select(s => RunSingle(s, stoppingToken))
+                .ToArray();
 
-                settings = settingsService.ResolveConfigs();
-                var tasks = settings
-                    .Select(s => RunSingle(s, combinedCts.Token))
-                    .Where(t => t != null)
-                    .ToArray();
+            _portsByRegName = settings
+                .SelectMany(p => p.Devices.SelectMany(d => d.Groups).SelectMany(g => g.Registers).Select(r => (Reg: r, Port: p)))
+                .ToFrozenDictionary(x => x.Reg.Name, x => x.Port.SerialName);
 
-                _portsByRegName = settings
-                    .SelectMany(p => p.Devices.SelectMany(d => d.Groups).SelectMany(g => g.Registers).Select(r => (Reg: r, Port: p)))
-                    .ToFrozenDictionary(x => x.Reg.Name, x => x.Port.SerialName);
-
-                await Task.WhenAll(tasks);
-            }
+            await Task.WhenAll(tasks);
         }
 
         private async Task RunSingle(ReadPort settings, CancellationToken cancellationToken)
         {
-            //TODO: добавить Replay
-            try
+            while (true)
             {
-                if (cancellationToken.IsCancellationRequested)
+                try
+                {
+                    if (cancellationToken.IsCancellationRequested)
+                        return;
+
+                    var queue = queueFactoryService.CreateQueue(settings);
+
+                    await queue.Run(cancellationToken);
                     return;
+                }
+                catch (OperationCanceledException)
+                {
+                    logger.LogInformation($"Очередь {settings.SerialName} остановлена");
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, $"Очередь {settings.SerialName} прекратила работу из за ошибки");
+                }
 
-                var queue = queueFactoryService.CreateQueue(settings);
-
-                await queue.Run(cancellationToken);
+                try
+                {
+                    await Task.Delay(settings.ErrorSleepTimeout, cancellationToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    return;
+                }
             }
-            catch (OperationCanceledException)
-            {
-                logger.LogInformation($"Очередь {settings.SerialName} остановлена");
-                return;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Очередь {settings.SerialName} прекратила работу из за ошибки");
-            }
-        }
-
-        public void ReloadSettings()
-        {
-            //lock (synchObject)
-            //{
-            //    var curr = currentCancellationTokenSource;
-            //    currentCancellationTokenSource = new CancellationTokenSource();
-            //    curr.Cancel();
-            //}
         }
     }
 }

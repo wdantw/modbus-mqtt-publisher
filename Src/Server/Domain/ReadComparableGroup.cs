@@ -5,6 +5,7 @@
         where TThisType : ReadComparableGroup<TThisType, TChildType>
     {
         private readonly IReadPriorityCallbacks<TThisType> _callbacks;
+        
         protected abstract TThisType This { get; }
 
         public ReadComparableGroup(IReadPriorityCallbacks<TThisType> callbacks)

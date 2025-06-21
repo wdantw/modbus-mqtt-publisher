@@ -17,7 +17,7 @@ namespace ModbusMqttPublisher.Tests.Tests.Mqtt
             _host = host;
         }
 
-        [Fact]
+        [Fact(Skip = "Требуется запуск с админсткими прававами")]
         public async Task MosquittoRestartTest()
         {
             // arrange
