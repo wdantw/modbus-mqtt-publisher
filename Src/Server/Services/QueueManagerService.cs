@@ -1,4 +1,5 @@
-﻿using ModbusMqttPublisher.Server.Domain;
+﻿using Microsoft.Extensions.Hosting;
+using ModbusMqttPublisher.Server.Domain;
 using ModbusMqttPublisher.Server.Services.Configuration;
 using System.Collections.Frozen;
 
@@ -9,18 +10,18 @@ namespace ModbusMqttPublisher.Server.Services
         private readonly IConfigurationResolver settingsService;
         private readonly ILogger<QueueManagerService> logger;
         private readonly IQueueFactoryService queueFactoryService;
-        private readonly IHost host;
+        private readonly IHostApplicationLifetime _hostApplicationLifetime;
 
         private readonly object synchObject = new object();
         private ReadPort[]? settings = null;
         private FrozenDictionary<string, string>? _portsByRegName = null;
 
-        public QueueManagerService(IConfigurationResolver settingsService, ILogger<QueueManagerService> logger, IQueueFactoryService queueFactoryService, IHost host)
+        public QueueManagerService(IConfigurationResolver settingsService, ILogger<QueueManagerService> logger, IQueueFactoryService queueFactoryService, IHostApplicationLifetime hostApplicationLifetime)
         {
             this.settingsService = settingsService;
             this.logger = logger;
             this.queueFactoryService = queueFactoryService;
-            this.host = host;
+            _hostApplicationLifetime = hostApplicationLifetime;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -39,7 +40,7 @@ namespace ModbusMqttPublisher.Server.Services
             }
 
             // служба должна остановиться при завершении из за ошибки
-            await host.StopAsync();
+            _hostApplicationLifetime.StopApplication();
         }
 
         public string? GetTopicSerialName(string topicName)
