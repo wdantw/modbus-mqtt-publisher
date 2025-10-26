@@ -1,5 +1,4 @@
-﻿using Microsoft.Extensions.Hosting;
-using ModbusMqttPublisher.Server.Domain;
+﻿using ModbusMqttPublisher.Server.Domain;
 using ModbusMqttPublisher.Server.Services.Configuration;
 using System.Collections.Frozen;
 

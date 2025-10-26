@@ -2,7 +2,6 @@
 {
 	public interface IModbusClient : IDisposable
 	{
-		bool IsPortOpen { get; }
 		Task CheckConnection(TimeSpan reconnectTimeout, CancellationToken cancellationToken);
 		Task<bool[]> ReadBitRegistersAsync(ModbusRequest request);
 		Task<ushort[]> ReadShortRegistersAsync(ModbusRequest request);
