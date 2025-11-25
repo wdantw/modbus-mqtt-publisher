@@ -4,6 +4,6 @@ namespace ModbusMqttPublisher.Server.Services.Modbus
 {
     public interface IModbusClientFactory
 	{
-		IModbusClient Create(ReadPort settings, Profiler profiler);
+		IModbusClient Create(ReadPort settings);
 	}
 }

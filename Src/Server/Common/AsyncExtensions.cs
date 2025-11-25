@@ -9,13 +9,6 @@
 			await tsc.Task;
 		}
 
-		public static async Task<T> WhenCancelled<T>(this CancellationToken cancellationToken)
-		{
-			var tsc = new TaskCompletionSource<T>();
-			using var regHolder = cancellationToken.Register(() => tsc.TrySetCanceled());
-			return await tsc.Task;
-		}
-
 		public static async Task WithCancellation(this Task task, CancellationToken cancellationToken)
 		{
 			var tsc = new TaskCompletionSource();
@@ -25,19 +18,18 @@
 			await winTask;
 		}
 
-		public static async Task<T> WithCancellation<T>(this Task<T> task, CancellationToken cancellationToken)
+		public static async Task<Task> WhenAnyCancellable(Func<CancellationToken, Task> func1, Func<CancellationToken, Task> func2, CancellationToken cancellationToken)
 		{
-			var tsc = new TaskCompletionSource<T>();
-			using var regHolder = cancellationToken.Register(() => tsc.TrySetCanceled());
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
-			var winTask = await Task.WhenAny(task, tsc.Task);
-			return await winTask;
-		}
+            var task1 = func1(linkedCts.Token);
+            var task2 = func2(linkedCts.Token);
 
-		public static async Task WithTimeoutNotThrow(this Task task, TimeSpan timeout)
-		{
-			var winTask = await Task.WhenAny(task, Task.Delay(timeout));
-			await winTask;
-		}
+            var winTask = await Task.WhenAny(task1, task2);
+
+            linkedCts.Cancel();
+
+			return winTask;
+        }
 	}
 }

@@ -11,6 +11,7 @@
   },
    "ModbusPorts": [
     {
+      "MinSleepTimeout1": "00:00:00.1",
       "SerialName": "COM3",
       "BaudRate": 9600,
       "DataBits": 8,
@@ -27,6 +28,7 @@
       "ErrorSleepTimeout": "00:00:05.000"
     },
     {
+      "MinSleepTimeout1": "00:00:00.1",
       "SerialName": "/dev/ttyUSB0",
       "BaudRate": 115200,
       "DataBits": 8,

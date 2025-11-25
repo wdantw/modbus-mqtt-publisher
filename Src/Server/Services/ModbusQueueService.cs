@@ -1,11 +1,10 @@
-﻿using ModbusMqttPublisher.Server.Contracts.Settings;
-using ModbusMqttPublisher.Server.Common;
+﻿using ModbusMqttPublisher.Server.Common;
 using ModbusMqttPublisher.Server.Contracts;
 using ModbusMqttPublisher.Server.Services.Modbus;
-using System.Globalization;
 using ModbusMqttPublisher.Server.Services.Values;
 using ModbusMqttPublisher.Server.Services.Mqtt;
 using ModbusMqttPublisher.Server.Domain;
+using System.Diagnostics.Metrics;
 
 namespace ModbusMqttPublisher.Server.Services
 {
@@ -17,19 +16,33 @@ namespace ModbusMqttPublisher.Server.Services
         private readonly IMqttBus mqttBus;
         private readonly IWriteQueueService writeQueueService;
 
-		public ModbusQueueService(
+        private readonly Counter<int> _readCallCounter;
+        private readonly DiagnosticTimeCounter _readCallDurationCounter;
+        private readonly Counter<int> _writeCallCounter;
+        private readonly DiagnosticTimeCounter _writeCallDurationCounter;
+        private readonly DiagnosticTimeCounter _sleepCallDurationCounter;
+
+        public ModbusQueueService(
             ReadPort settings,
-			ILogger<ModbusQueueService> logger,
-			IModbusClientFactory modbusFactory,
+            ILogger<ModbusQueueService> logger,
+            IModbusClientFactory modbusFactory,
             IMqttBus mqttBus,
-			IWriteQueueService writeQueueService)
-		{
-			this.settings = settings;
-			this.logger = logger;
-			this.modbusFactory = modbusFactory;
-			this.mqttBus = mqttBus;
-			this.writeQueueService = writeQueueService;
-		}
+            IWriteQueueService writeQueueService,
+            IMeterFactory meterFactory)
+        {
+            this.settings = settings;
+            this.logger = logger;
+            this.modbusFactory = modbusFactory;
+            this.mqttBus = mqttBus;
+            this.writeQueueService = writeQueueService;
+
+            var meter = meterFactory.Create(GetType().FullName!, tags: new Dictionary<string, object?> { { "Serial", settings.SerialName } });
+            _readCallCounter = meter.CreateCounter<int>("publisher.queue.read.calls", "calls", "Количество вызовов метода чтения регистров");
+            _readCallDurationCounter = new DiagnosticTimeCounter(meter.CreateCounter<double>("publisher.queue.read.duration", "ms", "Время, проведенное в методах чтения регистров"));
+            _writeCallCounter = meter.CreateCounter<int>("publisher.queue.write.calls", "calls", "Количество вызовов метода записи в регистры");
+            _writeCallDurationCounter = new DiagnosticTimeCounter(meter.CreateCounter<double>("publisher.queue.write.duration", "ms", "Время, проведенное в методах записи в регистры"));
+            _sleepCallDurationCounter = new DiagnosticTimeCounter(meter.CreateCounter<double>("publisher.queue.sleep.duration", "ms", "Время, проведенное в принудительном ожидании"));
+        }
 
         private async Task PublishValue(string topic, string value, CancellationToken cancellationToken)
         {
@@ -43,126 +56,60 @@ namespace ModbusMqttPublisher.Server.Services
             await mqttBus.EnqueueMessage(topic, valStorage.ToMqtt(), false, cancellationToken);
         }
 
-		private async Task PublishPrifilerData(Profiler profiler, CancellationToken cancellationToken)
-        {
-            profiler.Stop(out var globalTime, out var methodsTimes);
-
-            var serName = settings.SerialName;
-            if (serName.StartsWith(MqttPath.TopicPathDelimeter))
-                serName = serName[1..];
-
-			var basePath = MqttPath.CombineTopicPath("ModbusMqttPublisher", serName);
-
-			var format = (NumberFormatInfo)NumberFormatInfo.CurrentInfo.Clone();
-			format.NumberDecimalSeparator = DefaultSettings.DecimalSeparator;
-
-            await PublishValue(MqttPath.CombineTopicPath(basePath, $"time_global"), globalTime.ToString(), cancellationToken);
-
-			var otherTime = globalTime;
-
-			foreach (var method in methodsTimes)
-            {
-				var methodName = method.Key;
-
-				if (methodName.StartsWith("$"))
-				{
-					methodName = methodName.Substring(1);
-				}
-				else
-				{
-					otherTime = otherTime - method.Value;
-				}
-
-                await PublishValue(MqttPath.CombineTopicPath(basePath, $"percent_{methodName}"), method.Value.TotalMilliseconds / globalTime.TotalMilliseconds * 100.0, cancellationToken);
-                await PublishValue(MqttPath.CombineTopicPath(basePath, $"time_{methodName}"), method.Value.ToString(), cancellationToken);
-			}
-
-            await PublishValue(MqttPath.CombineTopicPath(basePath, $"percent_other"), otherTime.TotalMilliseconds / globalTime.TotalMilliseconds * 100.0, cancellationToken);
-            await PublishValue(MqttPath.CombineTopicPath(basePath, $"time_other"), otherTime.ToString(), cancellationToken);
-
-			await PublishValue(MqttPath.CombineTopicPath(basePath, $"stat_readComands"), statReadCommands.ToString(), cancellationToken);
-			await PublishValue(MqttPath.CombineTopicPath(basePath, $"stat_WriteCommands"), statWriteCommands.ToString(), cancellationToken);
-			await PublishValue(MqttPath.CombineTopicPath(basePath, $"stat_ReadDataBytes"), statReadDataBytes.ToString(), cancellationToken);
-            await PublishValue(MqttPath.CombineTopicPath(basePath, $"stat_WriteDataBytes"), statWriteDataBytes.ToString(), cancellationToken);
-
-			await PublishValue(MqttPath.CombineTopicPath(basePath, $"stat_in_sec_readComands"), statReadCommands * 1.0 / globalTime.TotalSeconds, cancellationToken);
-			await PublishValue(MqttPath.CombineTopicPath(basePath, $"stat_in_sec_WriteCommands"), statWriteCommands * 1.0 / globalTime.TotalSeconds, cancellationToken);
-			await PublishValue(MqttPath.CombineTopicPath(basePath, $"stat_in_sec_ReadDataBytes"), statReadDataBytes * 1.0 / globalTime.TotalSeconds, cancellationToken);
-            await PublishValue(MqttPath.CombineTopicPath(basePath, $"stat_in_sec_WriteDataBytes"), statWriteDataBytes * 1.0 / globalTime.TotalSeconds, cancellationToken);
-
-			statReadCommands = 0;
-			statWriteCommands = 0;
-			statReadDataBytes = 0;
-			statWriteDataBytes = 0;
-			profiler.Start();
-		}
-
-		int statReadCommands = 0;
-		int statWriteCommands = 0;
-		int statReadDataBytes = 0;
-		int statWriteDataBytes = 0;
-
 		public async Task Run(CancellationToken cancellationToken)
         {
-			var profiler = new Profiler();
-			using var modbusClient = modbusFactory.Create(settings, profiler);
+			using var modbusClient = modbusFactory.Create(settings);
 
-			profiler.Start();
 			while (!cancellationToken.IsCancellationRequested)
             {
 				logger.LogDebug($"Новый цикл работы с портом");
 
-                if (profiler.Elapsed > TimeSpan.FromSeconds(5))
-                    await PublishPrifilerData(profiler, cancellationToken);
-
 				await modbusClient.CheckConnection(settings.ErrorSleepTimeout, cancellationToken);
 
-				var writeQuery = profiler.WrapMethod("get_writes", () => writeQueueService.GetQuery(settings.SerialName));
+				var writeQuery = writeQueueService.GetQuery(settings.SerialName);
                 if (writeQuery != null)
                 {
-                    await profiler.WrapMethodAsync("write", () => PerfomWriteRequest(modbusClient, writeQuery));
+                    await PerfomWriteRequest(modbusClient, writeQuery);
                     writeQueueService.AcceptDequeued(settings.SerialName);
-					await profiler.WrapMethodAsync("sleep", () => Task.Delay(settings.MinSleepTimeout, cancellationToken));
+					await PerfomSleep(settings.MinSleepTimeout, cancellationToken);
                     continue;
                 }
 
 				var currTime = DateTime.Now;
-                DateTime nextReadTime;
+                var nextReadTime = settings.NextReadTime;
 
-                using (var getReadProfilerHolder = profiler.StartMethod("get_reads"))
+                if (nextReadTime <= currTime)
                 {
-					nextReadTime = settings.NextReadTime;
+                    var readTask = settings.GetNextReadTask(currTime);
 
-					if (nextReadTime <= currTime)
-					{
-						var readTask = settings.GetNextReadTask(currTime);
-
-						if (readTask != null)
-						{
-                            await profiler.WrapMethodAsync("read", () => PerfomReadRequest(modbusClient, readTask, profiler, cancellationToken));
-                            await profiler.WrapMethodAsync("sleep", () => Task.Delay(settings.MinSleepTimeout, cancellationToken));
-                        }
-
-                        continue;
+                    if (readTask != null)
+                    {
+                        await PerfomReadRequest(modbusClient, readTask, cancellationToken);
+                        await PerfomSleep(settings.MinSleepTimeout, cancellationToken);
                     }
-				}
 
-				var delay = nextReadTime - currTime;
+                    continue;
+                }
+
+                var delay = nextReadTime - currTime;
 				
                 if (delay > TimeSpan.Zero)
                 {
-					if (delay > TimeSpan.FromSeconds(5))
-                        delay = TimeSpan.FromHours(5);
+					logger.LogDebug("Ожидание следующего чтения {delay}", delay);
 
-					logger.LogDebug($"Ожидание следующего чтения {delay}");
-
-					await profiler.WrapMethodAsync("sleep", () => writeQueueService.WaitForItems(settings.SerialName, cancellationToken).WithTimeoutNotThrow(delay));
+					await await AsyncExtensions.WhenAnyCancellable(
+						ct => writeQueueService.WaitForItems(settings.SerialName, ct),
+						ct => PerfomSleep(delay, ct),
+						cancellationToken);
 				}
             }
         }
 
-        private async Task<bool> PerfomReadRequest(IModbusClient modbus, ReadTask readTask, Profiler profiler, CancellationToken cancellationToken)
+        private async Task<bool> PerfomReadRequest(IModbusClient modbus, ReadTask readTask, CancellationToken cancellationToken)
         {
+            _readCallCounter.Add(1);
+            using var _ = _readCallDurationCounter.GetStartHolder();
+
             var readTime = DateTime.Now;
 
             if (readTask.RegisterType.IsBitReg())
@@ -171,11 +118,6 @@ namespace ModbusMqttPublisher.Server.Services
 
                 try
                 {
-                    statReadCommands++;
-                    statReadDataBytes += (readTask.RegisterCount + 7) / 8;
-
-					using var holder = profiler.StartMethod("$nmodbus_read");
-
 					readResult = await modbus.ReadBitRegistersAsync(new ModbusRequest(
 						readTask.Device.SlaveAddress,
 						readTask.StartNumber,
@@ -185,8 +127,6 @@ namespace ModbusMqttPublisher.Server.Services
                         readTask.Device.ReadTimeout,
                         readTask.Device.WriteTimeout
 					));
-
-					holder.Dispose();
 				}
 				catch (Exception ex)
                 {
@@ -213,11 +153,6 @@ namespace ModbusMqttPublisher.Server.Services
 
                 try
                 {
-					statReadCommands++;
-					statReadDataBytes += readTask.RegisterCount * 2;
-					
-					using var holder = profiler.StartMethod("$nmodbus_read");
-
 					readResult = await modbus.ReadShortRegistersAsync(new ModbusRequest(
 						readTask.Device.SlaveAddress,
 						readTask.StartNumber,
@@ -227,8 +162,6 @@ namespace ModbusMqttPublisher.Server.Services
 						readTask.Device.ReadTimeout,
 						readTask.Device.WriteTimeout
 					));
-
-					holder.Dispose();
 				}
 				catch (Exception ex)
 				{
@@ -255,7 +188,10 @@ namespace ModbusMqttPublisher.Server.Services
 
         private async Task<bool> PerfomWriteRequest(IModbusClient modbus, WriteQuery writeQuery)
         {
-			var writeTask = settings.GetWriteTask(writeQuery.TopicName);
+            _writeCallCounter.Add(1);
+            using var _ = _writeCallDurationCounter.GetStartHolder();
+
+            var writeTask = settings.GetWriteTask(writeQuery.TopicName);
 
 			if (writeTask == null)
 				return false;
@@ -273,13 +209,9 @@ namespace ModbusMqttPublisher.Server.Services
 
 				try
 				{
-
 					register.IncomeValueConverter.ToModbus(writeQuery.Value, data);
                     logger.LogDebug("Запись в modbus {registerName}", register.Name);
 
-                    statWriteCommands++;
-					statWriteDataBytes += (dataLength + 7) / 8;
-					
 					writeStarted = true;
 
 					await modbus.WriteBitRegistersAsync(new ModbusRequest(
@@ -315,8 +247,6 @@ namespace ModbusMqttPublisher.Server.Services
 					register.IncomeValueConverter.ToModbus(writeQuery.Value, data);
                     logger.LogDebug("Запись в modbus {registerName}", register.Name);
 
-                    statWriteCommands++;
-					statWriteDataBytes += dataLength * 2;
 					writeStarted = true;
 					await modbus.WriteShortRegistersAsync(new ModbusRequest(
                         device.SlaveAddress,
@@ -341,7 +271,13 @@ namespace ModbusMqttPublisher.Server.Services
 				}
 			}
 
-			return true;
+            return true;
 		}
-    }
+    
+		private async Task PerfomSleep(TimeSpan sleepTime, CancellationToken cancellationToken)
+		{
+			using var _ = _sleepCallDurationCounter.GetStartHolder();
+			await Task.Delay(sleepTime, cancellationToken);
+        }
+	}
 }

@@ -5,6 +5,7 @@ using ModbusMqttPublisher.Server.Services.Modbus;
 using NModbus;
 using ModbusMqttPublisher.Server.Infrastructure;
 using ModbusMqttPublisher.Server.Services.Mqtt;
+using OpenTelemetry.Metrics;
 
 namespace ModbusMqttPublisher
 {
@@ -57,7 +58,17 @@ namespace ModbusMqttPublisher
             builder.Services.AddSingleton<IQueueManagerService>(p => p.GetRequiredService<QueueManagerService>());
             builder.Services.AddHostedService(p => p.GetRequiredService<QueueManagerService>());
             builder.Services.AddSingleton<IMqttConsumer, MqttConsumer>();
-            
+            builder.Services.AddTransient<IModbusSerialPortFactory, ModbusSerialPortFactory>();
+
+            // телеметрия
+
+            builder.Services.AddOpenTelemetry()
+                .WithMetrics(metrix => metrix
+                    .AddMeter("ModbusMqttPublisher.*")
+                    .AddPrometheusExporter());
+
+            // приложение
+
             var app = builder.Build();
 
             app.UseStaticFiles();
@@ -66,6 +77,7 @@ namespace ModbusMqttPublisher
 
             app.MapRazorPages();
             app.MapControllers();
+            app.UseOpenTelemetryPrometheusScrapingEndpoint();
             app.MapFallbackToFile("index.html");
 
             app.UseSwagger();

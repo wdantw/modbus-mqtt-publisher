@@ -5,7 +5,7 @@ outdir: ..\binary
 
 package: modbus-mqtt-publisher
 version: 1.3.0
-architecture: armhf
+architecture: arm64
 maintainer: Dant <kloundant@mail.ru>
 description: mqtt modbus gateway
 #depends: aspnetcore-runtime-8.0
@@ -18,7 +18,7 @@ prerm:    Setup\prerm      text
 
 # vars
 INSTALLDIR = opt/modbus-mqtt-publisher
-PUBLISHDIR = publish\linux-arm
+PUBLISHDIR = publish\linux-arm64
 
 # files
 file: Setup\modbus-mqtt-publisher.service  etc/systemd/system/  text
