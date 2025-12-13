@@ -1,10 +1,10 @@
 using ModbusMqttPublisher.Server.Contracts.Configs;
+using ModbusMqttPublisher.Server.Infrastructure;
 using ModbusMqttPublisher.Server.Services;
 using ModbusMqttPublisher.Server.Services.Configuration;
 using ModbusMqttPublisher.Server.Services.Modbus;
-using NModbus;
-using ModbusMqttPublisher.Server.Infrastructure;
 using ModbusMqttPublisher.Server.Services.Mqtt;
+using NModbus;
 using OpenTelemetry.Metrics;
 
 namespace ModbusMqttPublisher
@@ -14,7 +14,7 @@ namespace ModbusMqttPublisher
         private static bool IsFakeModbus()
         {
             var isFakeModbusEnv = Environment.GetEnvironmentVariable("MODBUS_MQTT_PUBLISHER_FAKE_MODBUS");
-            
+
             if (string.IsNullOrWhiteSpace(isFakeModbusEnv))
                 return false;
 
@@ -32,25 +32,25 @@ namespace ModbusMqttPublisher
             if (!string.IsNullOrWhiteSpace(userConfigFile))
                 builder.Configuration.AddJsonFile(userConfigFile);
 
-			// Add services to the container.
+            // Add services to the container.
 
-			builder.Services.AddControllersWithViews();
+            builder.Services.AddControllersWithViews();
             builder.Services.AddRazorPages();
             builder.Services.AddSwaggerGen();
 
             builder.Services.Configure<MqttOptions>(builder.Configuration.GetSection(MqttOptions.SectionName));
             builder.Services.Configure<ModbusDeviceTypes>(builder.Configuration.GetSection(ModbusDeviceTypes.SectionName));
-			builder.Services.Configure<ModbusPorts>(builder.Configuration.GetSection(ModbusPorts.SectionName));
-			builder.Services.Configure<ModbusModifiers>(builder.Configuration.GetSection(ModbusModifiers.SectionName));
+            builder.Services.Configure<ModbusPorts>(builder.Configuration.GetSection(ModbusPorts.SectionName));
+            builder.Services.Configure<ModbusModifiers>(builder.Configuration.GetSection(ModbusModifiers.SectionName));
 
-			builder.Services.AddTransient<IQueueFactoryService, QueueFactoryService>();
+            builder.Services.AddTransient<IQueueFactoryService, QueueFactoryService>();
             builder.Services.AddTransient<ModbusLogger>();
             builder.Services.AddTransient<IConfigurationResolver, ConfigurationResolver>();
             if (IsFakeModbus())
                 builder.Services.AddTransient<IModbusClientFactory, FakeFactory>();
             else
-				builder.Services.AddTransient<IModbusClientFactory, ModbusClientFactory>();
-			builder.Services.AddSingleton<IModbusFactory>(p => new ModbusFactory(null, true, p.GetRequiredService<ModbusLogger>()));
+                builder.Services.AddTransient<IModbusClientFactory, ModbusClientFactory>();
+            builder.Services.AddSingleton<IModbusFactory>(p => new ModbusFactory(null, true, p.GetRequiredService<ModbusLogger>()));
             builder.Services.AddMqtt();
             builder.Services.AddSingleton<IWriteQueueService, WriteQueueService>();
 
