@@ -7,7 +7,7 @@ using ModbusMqttPublisher.Server.Services.Mqtt;
 using NModbus;
 using OpenTelemetry.Metrics;
 
-namespace ModbusMqttPublisher
+namespace ModbusMqttPublisher.Server
 {
     public class Program
     {
