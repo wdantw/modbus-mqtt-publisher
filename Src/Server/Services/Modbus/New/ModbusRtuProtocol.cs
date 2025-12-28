@@ -1,7 +1,10 @@
-﻿using ModbusMqttPublisher.Server.Services.Modbus.New.Enums;
+﻿using Microsoft.Extensions.Logging;
+using ModbusMqttPublisher.Server.Services.Modbus.New.Enums;
 using ModbusMqttPublisher.Server.Services.Modbus.New.Exceptions;
 using ModbusMqttPublisher.Server.Services.Modbus.New.Handlers;
 using ModbusMqttPublisher.Server.Services.Modbus.New.Utils;
+using MQTTnet.Internal;
+using System.Net.Sockets;
 
 namespace ModbusMqttPublisher.Server.Services.Modbus.New
 {
@@ -13,6 +16,7 @@ namespace ModbusMqttPublisher.Server.Services.Modbus.New
         private readonly ModbusReadBuffer _readBuffer;
         private readonly ModbusWriteBuffer _writeBuffer;
 
+        public int RegtryCount { get; set; } = ModbusConstants.DefaultRetryCount;
 
         public ModbusRtuProtocol(IModbusChannel channel)
         {
@@ -25,6 +29,15 @@ namespace ModbusMqttPublisher.Server.Services.Modbus.New
 
         public TResult PerformRequest<TResult>(IModbusRequestHandler<TResult> handler)
         {
+            // todo: реализовать ретраи
+            return PerformRequestCore(handler);
+        }
+
+
+        private TResult PerformRequestCore<TResult>(IModbusRequestHandler<TResult> handler)
+        {
+            _channel.DiscardInBuffer();
+
             // ==============================================
             // отправка запроса
             // ==============================================

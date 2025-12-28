@@ -1,30 +1,29 @@
 ﻿using ModbusMqttPublisher.Server.Contracts;
 using ModbusMqttPublisher.Server.Domain;
-using NModbus;
-using NModbus.Serial;
+using ModbusMqttPublisher.Server.Services.Modbus.New;
+using ModbusMqttPublisher.Server.Services.Modbus.New.Handlers;
+using System.IO.Ports;
 
 namespace ModbusMqttPublisher.Server.Services.Modbus
 {
     public class ModbusClient : IModbusClient
     {
-        IModbusMaster modbusMaster;
+        ModbusRtuProtocol modbusMaster;
         IModbusSerialPort serialPort;
         ILogger<ModbusClient> logger;
 
         public ModbusClient(
             ReadPort settings,
-            IModbusFactory modbusFactory,
             ILogger<ModbusClient> logger,
             IModbusSerialPortFactory modbusSerialPortFactory)
         {
             this.logger = logger;
             serialPort = modbusSerialPortFactory.Create(settings);
-            modbusMaster = modbusFactory.CreateRtuMaster(serialPort);
+            modbusMaster = new ModbusRtuProtocol(serialPort);
         }
 
         public void Dispose()
         {
-            modbusMaster.Dispose();
             serialPort.Dispose();
         }
 
@@ -35,9 +34,9 @@ namespace ModbusMqttPublisher.Server.Services.Modbus
         {
             logger.LogTrace($"{msg}. Адрес {request.SlaveAddress}, Тип Рег: {request.RegisterType}, Номер рег: {request.StartRegister}, Кол-во: {request.RegisterCount}");
 
-            modbusMaster.Transport.Retries = request.RetryCount;
-            modbusMaster.Transport.ReadTimeout = (int)request.ReadTimeout.TotalMilliseconds;
-            modbusMaster.Transport.WriteTimeout = (int)request.WriteTimeout.TotalMilliseconds;
+            modbusMaster.RegtryCount = request.RetryCount;
+            serialPort.ReadTimeout = (int)request.ReadTimeout.TotalMilliseconds;
+            serialPort.WriteTimeout = (int)request.WriteTimeout.TotalMilliseconds;
         }
 
         private Exception CreteExeption(Exception inner, string message, ModbusRequest request)
@@ -45,7 +44,7 @@ namespace ModbusMqttPublisher.Server.Services.Modbus
             return new Exception($"{message}. Адрес {request.SlaveAddress}, Тип Рег: {request.RegisterType}, Номер рег: {request.StartRegister}, Кол-во: {request.RegisterCount}", inner);
         }
 
-        public async Task<bool[]> ReadBitRegistersAsync(ModbusRequest request)
+        public Task<bool[]> ReadBitRegistersAsync(ModbusRequest request)
         {
             InitRequest("Чтение из modbus", request);
 
@@ -54,9 +53,9 @@ namespace ModbusMqttPublisher.Server.Services.Modbus
                 switch (request.RegisterType)
                 {
                     case RegisterType.Coil:
-                        return await modbusMaster.ReadCoilsAsync(request.SlaveAddress, request.StartRegister, request.RegisterCount);
+                        return Task.FromResult(modbusMaster.PerformRequest(new ReadCoilsHandler(requestSlaveAddress: request.SlaveAddress, requestStartRegister: request.StartRegister, requestRegisterCount: request.RegisterCount)));
                     case RegisterType.DiscreteInput:
-                        return await modbusMaster.ReadInputsAsync(request.SlaveAddress, request.StartRegister, request.RegisterCount);
+                        return Task.FromResult(modbusMaster.PerformRequest(new ReadDescreteInputsHandler(requestSlaveAddress: request.SlaveAddress, requestStartRegister: request.StartRegister, requestRegisterCount: request.RegisterCount)));
                     default:
                         throw new NotImplementedException();
                 }
@@ -67,7 +66,7 @@ namespace ModbusMqttPublisher.Server.Services.Modbus
             }
         }
 
-        public async Task<ushort[]> ReadShortRegistersAsync(ModbusRequest request)
+        public Task<ushort[]> ReadShortRegistersAsync(ModbusRequest request)
         {
             InitRequest("Чтение из modbus", request);
 
@@ -76,9 +75,9 @@ namespace ModbusMqttPublisher.Server.Services.Modbus
                 switch (request.RegisterType)
                 {
                     case RegisterType.HoldingRegister:
-                        return await modbusMaster.ReadHoldingRegistersAsync(request.SlaveAddress, request.StartRegister, request.RegisterCount);
+                        return Task.FromResult(modbusMaster.PerformRequest(new ReadHoldingRegistersHandler(requestSlaveAddress: request.SlaveAddress, requestStartRegister: request.StartRegister, requestRegisterCount: request.RegisterCount)));
                     case RegisterType.InputRegister:
-                        return await modbusMaster.ReadInputRegistersAsync(request.SlaveAddress, request.StartRegister, request.RegisterCount);
+                        return Task.FromResult(modbusMaster.PerformRequest(new ReadInputRegistersHandler(requestSlaveAddress: request.SlaveAddress, requestStartRegister: request.StartRegister, requestRegisterCount: request.RegisterCount)));
                     default:
                         throw new NotImplementedException();
                 }
@@ -89,7 +88,7 @@ namespace ModbusMqttPublisher.Server.Services.Modbus
             }
         }
 
-        public async Task WriteBitRegistersAsync(ModbusRequest request, bool[] data)
+        public Task WriteBitRegistersAsync(ModbusRequest request, bool[] data)
         {
             InitRequest("Запись в modbus", request);
 
@@ -104,20 +103,22 @@ namespace ModbusMqttPublisher.Server.Services.Modbus
 
                 if (request.RegisterCount == 1)
                 {
-                    await modbusMaster.WriteSingleCoilAsync(request.SlaveAddress, request.StartRegister, data[0]);
+                    modbusMaster.PerformRequest(new WriteSingleCoilHandler(requestSlaveAddress: request.SlaveAddress, requestRegisterAddress: request.StartRegister, requestValue: data[0]));
                 }
                 else
                 {
-                    await modbusMaster.WriteMultipleCoilsAsync(request.SlaveAddress, request.StartRegister, data);
+                    modbusMaster.PerformRequest(new WriteMultipleCoilsHandler(requestSlaveAddress: request.SlaveAddress, requestStartRegister: request.StartRegister, requestValues: data));
                 }
             }
             catch (Exception ex)
             {
                 throw CreteExeption(ex, "Ошибка записи в Modbus", request);
             }
+
+            return Task.CompletedTask;
         }
 
-        public async Task WriteShortRegistersAsync(ModbusRequest request, ushort[] data)
+        public Task WriteShortRegistersAsync(ModbusRequest request, ushort[] data)
         {
             InitRequest("Запись в modbus", request);
 
@@ -131,17 +132,19 @@ namespace ModbusMqttPublisher.Server.Services.Modbus
 
                 if (request.RegisterCount == 1)
                 {
-                    await modbusMaster.WriteSingleRegisterAsync(request.SlaveAddress, request.StartRegister, data[0]);
+                    modbusMaster.PerformRequest(new WriteSingleRegisterHandler(requestSlaveAddress: request.SlaveAddress, requestRegisterAddress: request.StartRegister, requestValue: data[0]));
                 }
                 else
                 {
-                    await modbusMaster.WriteMultipleRegistersAsync(request.SlaveAddress, request.StartRegister, data);
+                    modbusMaster.PerformRequest(new WriteMultipleRegistersHandler(requestSlaveAddress: request.SlaveAddress, requestStartRegister: request.StartRegister, requestValues: data));
                 }
             }
             catch (Exception ex)
             {
                 throw CreteExeption(ex, "Ошибка записи в Modbus", request);
             }
+
+            return Task.CompletedTask;
         }
     }
 }

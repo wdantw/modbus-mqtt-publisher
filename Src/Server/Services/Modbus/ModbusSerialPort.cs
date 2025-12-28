@@ -60,15 +60,19 @@ namespace ModbusMqttPublisher.Server.Services.Modbus
             set => _serialPort.WriteTimeout = value;
         }
 
-        public void DiscardInBuffer() => _serialPort.DiscardInBuffer();
+        public void DiscardInBuffer()
+            => _serialPort.DiscardInBuffer();
 
-        public int Read(byte[] buffer, int offset, int count)
+        public void Read(byte[] buffer, int offset, int count)
         {
             _readCallCounter.Add(1);
             using var _ = _readCallDurationCounter.GetStartHolder();
-            var result = _serialPort.Read(buffer, offset, count);
-            _readBytesCounter.Add(result);
-            return result;
+
+            var readedCount = 0;
+            while (readedCount < count)
+                readedCount += _serialPort.Read(buffer, offset + readedCount, count - readedCount);
+
+            _readBytesCounter.Add(count);
         }
 
         public void Write(byte[] buffer, int offset, int count)

@@ -15,5 +15,7 @@
         public const ushort BitRegisterOn = 0xFF00;
 
         public const ushort BitRegisterOff = 0x0000;
+
+        public const int DefaultRetryCount = 3;
     }
 }

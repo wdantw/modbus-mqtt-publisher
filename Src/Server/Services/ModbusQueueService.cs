@@ -58,6 +58,8 @@ namespace ModbusMqttPublisher.Server.Services
 
 		public async Task Run(CancellationToken cancellationToken)
         {
+            await Task.Yield();
+
 			using var modbusClient = modbusFactory.Create(settings);
 
 			while (!cancellationToken.IsCancellationRequested)

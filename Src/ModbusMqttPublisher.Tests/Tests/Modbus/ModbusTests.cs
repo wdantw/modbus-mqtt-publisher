@@ -21,6 +21,10 @@ namespace ModbusMqttPublisher.Tests.Tests.Modbus
             
             public List<byte> ToRead => _toRead;
 
+            public void DiscardInBuffer()
+            {
+            }
+
             public void Read(byte[] buffer, int offset, int count)
             {
                 _toRead.CopyTo(_readPosition, buffer, offset, count);
