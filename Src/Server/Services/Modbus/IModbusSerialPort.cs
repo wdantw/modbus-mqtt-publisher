@@ -1,6 +1,4 @@
-﻿using ModbusMqttPublisher.Server.Services.Modbus.New;
-
-namespace ModbusMqttPublisher.Server.Services.Modbus
+﻿namespace ModbusMqttPublisher.Server.Services.Modbus
 {
     public interface IModbusSerialPort : IModbusChannel, IDisposable
     {

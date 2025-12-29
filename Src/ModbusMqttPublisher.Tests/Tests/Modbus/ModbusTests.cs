@@ -1,8 +1,8 @@
 ﻿using FluentAssertions;
-using ModbusMqttPublisher.Server.Services.Modbus.New;
-using ModbusMqttPublisher.Server.Services.Modbus.New.Enums;
-using ModbusMqttPublisher.Server.Services.Modbus.New.Exceptions;
-using ModbusMqttPublisher.Server.Services.Modbus.New.Handlers;
+using ModbusMqttPublisher.Server.Services.Modbus;
+using ModbusMqttPublisher.Server.Services.Modbus.Enums;
+using ModbusMqttPublisher.Server.Services.Modbus.Exceptions;
+using ModbusMqttPublisher.Server.Services.Modbus.Handlers;
 using System;
 using System.Collections.Generic;
 using Xunit;

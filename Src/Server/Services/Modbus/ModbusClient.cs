@@ -1,8 +1,6 @@
 ﻿using ModbusMqttPublisher.Server.Contracts;
 using ModbusMqttPublisher.Server.Domain;
-using ModbusMqttPublisher.Server.Services.Modbus.New;
-using ModbusMqttPublisher.Server.Services.Modbus.New.Handlers;
-using System.IO.Ports;
+using ModbusMqttPublisher.Server.Services.Modbus.Handlers;
 
 namespace ModbusMqttPublisher.Server.Services.Modbus
 {
