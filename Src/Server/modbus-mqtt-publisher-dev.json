@@ -21,7 +21,10 @@
         {
           "SlaveAddress": 116,
           "Name": "Sensors/Rel1/",
-          "ParentTypeName":  "WB-MR6CU v.2"
+          "ParentTypeName":  "WB-MR6CU v.2",
+          "Modifiers":[
+            { "Names": "UpTime", "ReadPeriod": "00:00:00.05", "ForcePublish": "true" }
+          ]
         }
       ],
       "ErrorSleepTimeout": "00:00:05.000",

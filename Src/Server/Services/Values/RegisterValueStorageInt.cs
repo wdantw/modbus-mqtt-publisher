@@ -15,9 +15,9 @@
             => int.Parse(value);
 
         protected override int ReadFromMudbus(ReadOnlySpan<ushort> modbusData)
-            => RegBitConverter.ReadDataInt32LE(modbusData);
+            => RegBitConverter.ReadDataInt32BE(modbusData);
 
-        protected override void WriteFromMudbus(Span<ushort> modbusData, int value)
-            => RegBitConverter.WriteDataLE(modbusData, value);
+        protected override void WriteToMudbus(Span<ushort> modbusData, int value)
+            => RegBitConverter.WriteDataBE(modbusData, value);
     }
 }

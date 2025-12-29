@@ -1,6 +1,6 @@
 ﻿namespace ModbusMqttPublisher.Server.Services.Values
 {
-    public class RegisterValueStorageULongBE : RegisterValueStorageNumericBase<ulong>
+    public class RegisterValueStorageULongLE : RegisterValueStorageNumericBase<ulong>
     {
         protected override double AsDouble(ulong value)
             => value;
@@ -15,9 +15,9 @@
             => ulong.Parse(value);
 
         protected override ulong ReadFromMudbus(ReadOnlySpan<ushort> modbusData)
-            => RegBitConverter.ReadDataUInt64BE(modbusData);
+            => RegBitConverter.ReadDataUInt64LE(modbusData);
 
-        protected override void WriteFromMudbus(Span<ushort> modbusData, ulong value)
-            => RegBitConverter.WriteDataBE(modbusData, value);
+        protected override void WriteToMudbus(Span<ushort> modbusData, ulong value)
+            => RegBitConverter.WriteDataLE(modbusData, value);
     }
 }

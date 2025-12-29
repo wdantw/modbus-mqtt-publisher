@@ -10,7 +10,7 @@
         protected abstract TValue FromString(string value);
         protected abstract TValue FromDouble(double value);
         protected abstract TValue ReadFromMudbus(ReadOnlySpan<ushort> modbusData);
-        protected abstract void WriteFromMudbus(Span<ushort> modbusData, TValue value);
+        protected abstract void WriteToMudbus(Span<ushort> modbusData, TValue value);
 
         public double ToDouble()
             => AsDouble(_value);
@@ -37,10 +37,10 @@
             => MqttStringConverter.ToMqtt(AsString(_value));
 
         public void ToModbus(double doubleValue, Span<ushort> modbusData)
-            => WriteFromMudbus(modbusData, FromDouble(doubleValue));
+            => WriteToMudbus(modbusData, FromDouble(doubleValue));
 
         public void ToModbus(ReadOnlySpan<byte> mqttData, Span<ushort> modbusData)
-            => WriteFromMudbus(modbusData, FromString(MqttStringConverter.FromMqtt(mqttData)));
+            => WriteToMudbus(modbusData, FromString(MqttStringConverter.FromMqtt(mqttData)));
 
         public void ToModbus(ReadOnlySpan<byte> mqttData, Span<bool> modbusData)
             => throw new NotImplementedException();
