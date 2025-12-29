@@ -23,7 +23,12 @@ namespace ModbusMqttPublisher.Server.Services.Modbus.Handlers
         {
             var header = writer.Alloc(2);
             header[0] = (byte)WBSubCommand.EventsConfigure;
-            header[1] = (byte)_configurations.Length;
+
+            var dataLength = 0;
+            foreach (var config in _configurations)
+                dataLength += 4 + config.EventPriorities.Length;
+
+            header[1] = (byte)dataLength;
 
             foreach (var config in _configurations)
             {

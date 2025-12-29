@@ -20,7 +20,7 @@ namespace ModbusMqttPublisher.Server.Services.Modbus.Handlers
             _requestValues = requestValues;
         }
 
-        public ModbusFunctionCode RequestFunctionCode => ModbusFunctionCode.WriteMultipleRegisters;
+        public ModbusFunctionCode RequestFunctionCode => ModbusFunctionCode.WriteMultipleCoils;
 
         public byte RequestSlaveAddress => _requestSlaveAddress;
 

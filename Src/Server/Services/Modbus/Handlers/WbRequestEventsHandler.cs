@@ -4,7 +4,7 @@ using ModbusMqttPublisher.Server.Services.Modbus.Utils;
 
 namespace ModbusMqttPublisher.Server.Services.Modbus.Handlers
 {
-    public class WbRequestEventsHandler : IModbusRequestHandler<WbEvents>
+    public class WbRequestEventsHandler : IModbusRequestHandler<WbEvents?>
     {
         private readonly byte _minSlaveAddress;
         private readonly byte _acceptEventsSlaveAddress;
@@ -45,7 +45,7 @@ namespace ModbusMqttPublisher.Server.Services.Modbus.Handlers
             requestData[4] = _acceptEventsFlag;
         }
 
-        public WbEvents ReadAnswer(ModbusHeader header, IChannelDataReader reader)
+        public WbEvents? ReadAnswer(ModbusHeader header, IChannelDataReader reader)
         {
             var answerSubComand = (WBSubCommand)reader.Read(1)[0];
 
@@ -54,7 +54,7 @@ namespace ModbusMqttPublisher.Server.Services.Modbus.Handlers
                 if (header.AnswerAddress != ModbusConstants.BroadcastAddress)
                     throw new ModbusFormatException("Неверный адрес устройства в ответе");
 
-                return WbEvents.Finished;
+                return null;
             }
 
             if (answerSubComand != WBSubCommand.EventsReceived)

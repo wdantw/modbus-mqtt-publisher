@@ -34,9 +34,10 @@ namespace ModbusMqttPublisher.Server.Services.Modbus.Handlers
         public TResult ReadAnswer(ModbusHeader header, IChannelDataReader reader)
         {
             var answerBytesCount = reader.Read(1)[0];
+
             var extectedAnswerBytesCount = GetExpectedDataByteCount(_requestRegisterCount);
-            if (extectedAnswerBytesCount != answerBytesCount)
-                throw new ModbusFormatException("Размер данных в ответе не соответсвует ожидаемому");
+            if (answerBytesCount > extectedAnswerBytesCount)
+                throw new ModbusFormatException("Размер данных в ответе больше ожидаемого");
 
             return GetResult(reader.Read(answerBytesCount), _requestRegisterCount);
         }

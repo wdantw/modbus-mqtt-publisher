@@ -2,8 +2,6 @@
 {
     public class WbEvents
     {
-        public static readonly WbEvents Finished = new WbEvents(0, 0, 0, null);
-
         public WbEvents(byte eventCount, byte acceptFlag, byte slaveAddress, WbEvent[]? events)
         {
             EventCount = eventCount;

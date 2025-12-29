@@ -16,9 +16,13 @@ namespace ModbusMqttPublisher.Server.Services.Modbus.Handlers
 
         protected override bool[] GetResult(ReadOnlySpan<byte> dataBytes, ushort requestRegisterCount)
         {
-            var result = new bool[requestRegisterCount];
+            var regCount = dataBytes.Length * 8;
+            if (regCount > requestRegisterCount)
+                regCount = requestRegisterCount;
 
-            for (var resultIndex = 0; resultIndex < requestRegisterCount; resultIndex++)
+            var result = new bool[regCount];
+
+            for (var resultIndex = 0; resultIndex < regCount; resultIndex++)
                 result[resultIndex] = (dataBytes[resultIndex / 8] & 1 << resultIndex % 8) != 0;
 
             return result;

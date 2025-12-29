@@ -1,4 +1,5 @@
 ﻿using ModbusMqttPublisher.Server.Services.Modbus.Enums;
+using ModbusMqttPublisher.Server.Services.Modbus.Exceptions;
 using ModbusMqttPublisher.Server.Services.Modbus.Utils;
 
 namespace ModbusMqttPublisher.Server.Services.Modbus.Handlers
@@ -17,9 +18,14 @@ namespace ModbusMqttPublisher.Server.Services.Modbus.Handlers
 
         protected override ushort[] GetResult(ReadOnlySpan<byte> dataBytes, ushort requestRegisterCount)
         {
-            var result = new ushort[requestRegisterCount];
+            if (dataBytes.Length % 2 != 0)
+                throw new ModbusFormatException("Размер данных должен быть кратен двум");
 
-            for (var resultIndex = 0; resultIndex < requestRegisterCount; resultIndex++)
+            var regCount = dataBytes.Length / 2;
+
+            var result = new ushort[regCount];
+
+            for (var resultIndex = 0; resultIndex < regCount; resultIndex++)
                 result[resultIndex] = ByteOrderUtils.ToUInt16BE(dataBytes.Slice(resultIndex * 2, 2));
 
             return result;
