@@ -14,8 +14,6 @@ namespace ModbusMqttPublisher.Server.Domain
         private readonly IRegisterValueStorageWithInConverter _registerValue;
         private bool _registerValueIsActual = false;
 
-        private DateTime _nextReadTime;
-
         public ushort StartNumber { get; }
         
         public ushort EndNumber { get; }
@@ -30,7 +28,9 @@ namespace ModbusMqttPublisher.Server.Domain
         
         public IPublishValueSorage PublishValue => _registerValue;
 
-        public DateTime NextReadTime => _nextReadTime;
+        public DateTime NextReadTime { get; private set; }
+
+        public bool WWbEventsSupport { get; }
 
         public ReadRegister(ModbusRegisterCompleted settings, IReadPriorityCallbacks<ReadRegister> callbacks, string baseName)
         {
@@ -48,7 +48,9 @@ namespace ModbusMqttPublisher.Server.Domain
                 throw new Exception("Регистр выходит за гарицы адресного пространства");
             EndNumber = (ushort)(StartNumber + SizeInRegisters);
 
-            _nextReadTime = DateTime.MinValue + (_readPeriod ?? TimeSpan.FromDays(365));
+            NextReadTime = DateTime.MinValue + (_readPeriod ?? TimeSpan.FromDays(365));
+
+            WWbEventsSupport = settings.WbEvents ?? false;
 
             _registerValue = RegisterValueStorageFactory.Create(
                 settings.Scale,
@@ -56,14 +58,13 @@ namespace ModbusMqttPublisher.Server.Domain
                 settings.DecimalSeparator,
                 settings.CompareDiff,
                 RegisterType,
-                registerFormat
-                );
+                registerFormat);
         }
 
         private void SetNextReadTime(DateTime nextReadTime, DateTime accessTime)
         {
-            var compareRes = nextReadTime.CompareTo(_nextReadTime);
-            _nextReadTime = nextReadTime;
+            var compareRes = nextReadTime.CompareTo(NextReadTime);
+            NextReadTime = nextReadTime;
 
             if (compareRes < 0)
                 _callbacks.ChildItemPriorityUp(this, accessTime);

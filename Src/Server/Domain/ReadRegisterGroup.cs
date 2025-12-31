@@ -38,7 +38,7 @@ namespace ModbusMqttPublisher.Server.Domain
             RegisterType = _registers.Select(r => r.RegisterType).Distinct().Single();
         }
 
-        private struct RegistertWithIndex
+        private ref struct RegistertWithIndex
         {
             private readonly ReadRegister[] _registers;
 
@@ -50,48 +50,41 @@ namespace ModbusMqttPublisher.Server.Domain
             }
 
             public ReadRegister Register { get; }
+
             public int Index { get; }
 
             public bool CanIncrement() => Index + 1 < _registers.Length;
+
             public RegistertWithIndex Increment() => new RegistertWithIndex(_registers, Index + 1);
 
             public static bool operator ==(RegistertWithIndex r1, RegistertWithIndex r2) => r1.Index == r2.Index;
+
             public static bool operator !=(RegistertWithIndex r1, RegistertWithIndex r2) => !(r1 == r2);
-
-            public override bool Equals([NotNullWhen(true)] object? obj)
-                => (obj is RegistertWithIndex) && ((RegistertWithIndex)obj) == this;
-
-            public override int GetHashCode() => Index.GetHashCode();
-
-            public override string ToString()
-                => $"Reg {Index} (Number: {Register.StartNumber})";
         }
 
         public ArraySegment<ReadRegister>? GetReadTask(int maxRegisterCount, int maxHoleSize, DateTime currTime)
         {
             var hottestRegister = EnsureMostPrioriyItem();
-            
+
+            // приоритетный регистр не нуждается в чтении
+            if (!hottestRegister.NeedReadingNow(currTime))
+                return null;
+
             var startRegister = new RegistertWithIndex(_registers, 0);
             while (!startRegister.Register.NeedReadingNow(currTime))
             {
-                if (startRegister.Register == hottestRegister)
-                {
-                    // приоритетный регистр не нуждается в чтении
-                    return null;
-                }
-
+                // Достигли конца массива. нет регистров готовых для чтения
                 if (!startRegister.CanIncrement())
-                {
-                    // Достигли конца массива. нет регистров готовых для чтения
                     return null;
-                }
+
                 startRegister = startRegister.Increment();
             }
 
+            var currRegister = startRegister;
+            
             var lastRegister = startRegister;
             bool hotInRange = startRegister.Register == hottestRegister;
 
-            var currRegister = startRegister;
             while (currRegister.CanIncrement())
             {
                 currRegister = currRegister.Increment();
