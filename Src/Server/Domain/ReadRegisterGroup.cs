@@ -1,6 +1,9 @@
 ﻿using ModbusMqttPublisher.Server.Common;
 using ModbusMqttPublisher.Server.Contracts;
 using ModbusMqttPublisher.Server.Contracts.Configs;
+using ModbusMqttPublisher.Server.Services.Modbus.Enums;
+using ModbusMqttPublisher.Server.Services.Modbus.Handlers;
+using System.Collections.Frozen;
 using System.Diagnostics.CodeAnalysis;
 
 namespace ModbusMqttPublisher.Server.Domain
@@ -8,6 +11,7 @@ namespace ModbusMqttPublisher.Server.Domain
     public class ReadRegisterGroup : ReadComparableGroup<ReadRegisterGroup, ReadRegister>
     {
         private readonly ReadRegister[] _registers;
+        private readonly IDictionary<ushort, ReadRegister> _registersByAddress;
 
         protected override ReadRegister[] Items => _registers;
         
@@ -36,9 +40,10 @@ namespace ModbusMqttPublisher.Server.Domain
                 throw new ApplicationException("Группа должна содержать хотя бы один регистр");
 
             RegisterType = _registers.Select(r => r.RegisterType).Distinct().Single();
+            _registersByAddress = _registers.ToFrozenDictionary(r => r.StartNumber);
         }
 
-        private ref struct RegistertWithIndex
+        private readonly ref struct RegistertWithIndex
         {
             private readonly ReadRegister[] _registers;
 
@@ -57,9 +62,15 @@ namespace ModbusMqttPublisher.Server.Domain
 
             public RegistertWithIndex Increment() => new RegistertWithIndex(_registers, Index + 1);
 
-            public static bool operator ==(RegistertWithIndex r1, RegistertWithIndex r2) => r1.Index == r2.Index;
+            public static bool operator == (RegistertWithIndex r1, RegistertWithIndex r2) => r1.Index == r2.Index;
 
-            public static bool operator !=(RegistertWithIndex r1, RegistertWithIndex r2) => !(r1 == r2);
+            public static bool operator != (RegistertWithIndex r1, RegistertWithIndex r2) => !(r1 == r2);
+
+            public override int GetHashCode()
+                => throw new InvalidOperationException();
+
+            public override bool Equals([NotNullWhen(true)] object? obj)
+                => throw new InvalidOperationException();
         }
 
         public ArraySegment<ReadRegister>? GetReadTask(int maxRegisterCount, int maxHoleSize, DateTime currTime)
@@ -154,6 +165,79 @@ namespace ModbusMqttPublisher.Server.Domain
             }
 
             return _registers.GetSegment(startRegister.Index, lastRegister.Index - startRegister.Index + 1);
+        }
+    
+        public ReadRegister? GetRegisterByAddress(ushort address)
+        {
+            if (!_registersByAddress.TryGetValue(address, out var result))
+                return null;
+
+            return result;
+        }
+    
+        private WBEventType GetWbEventType()
+        {
+            switch (RegisterType)
+            {
+                case RegisterType.Coil: return WBEventType.Colil;
+                case RegisterType.DiscreteInput: return WBEventType.Discrete;
+                case RegisterType.HoldingRegister: return WBEventType.Holding;
+                case RegisterType.InputRegister: return WBEventType.Input;
+                default:
+                    throw new InvalidOperationException();
+            }
+        }
+
+        public IEnumerable<WbEventConfig> GetWbEventConfigurations()
+        {
+            ushort? startRegConfigNumber = null;
+            var priorities = new List<WbEventPriority>();
+
+            foreach (var reg in _registers)
+            {
+                if (!reg.WWbEventsSupport)
+                    continue;
+
+                if (startRegConfigNumber.HasValue && startRegConfigNumber.Value + priorities.Count != reg.StartNumber)
+                {
+                    yield return new WbEventConfig(GetWbEventType(), startRegConfigNumber.Value, priorities.ToArray());
+                    priorities.Clear();
+                    startRegConfigNumber = null;
+                }
+
+                if (!startRegConfigNumber.HasValue)
+                    startRegConfigNumber = reg.StartNumber;
+
+                priorities.Add(reg.WbEventRequestedPriority);
+            }
+
+            if (startRegConfigNumber.HasValue)
+                yield return new WbEventConfig(GetWbEventType(), startRegConfigNumber.Value, priorities.ToArray());
+        }
+
+        public void ApplyWbEventsConfiguration(WbEventConfig config)
+        {
+            for (int startRegIndex = 0; startRegIndex < _registers.Length; startRegIndex++)
+            {
+                var startReg = _registers[startRegIndex];
+
+                if (startReg.StartNumber != config.StartRegister)
+                    continue;
+
+                for (int regIndex = 0; regIndex < _registers.Length; regIndex++)
+                {
+                    var reg = _registers[regIndex];
+                    
+                    if (reg.StartNumber > config.StartRegister + config.EventPriorities.Length)
+                        return;
+
+                    reg.WbEventActualPriority = config.EventPriorities[reg.StartNumber - config.StartRegister];
+                }
+
+                return;
+            }
+
+            throw new InvalidOperationException("Не найдены регистры для применения настроек");
         }
     }
 }

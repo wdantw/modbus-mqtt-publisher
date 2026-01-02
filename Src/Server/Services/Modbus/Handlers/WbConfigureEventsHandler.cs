@@ -19,6 +19,8 @@ namespace ModbusMqttPublisher.Server.Services.Modbus.Handlers
 
         public byte RequestSlaveAddress => _slaveAddress;
 
+        public bool SkeepStartWbArbitration => false;
+
         public void WriteRequest(IChannelDataWriter writer)
         {
             var header = writer.Alloc(2);
@@ -89,6 +91,11 @@ namespace ModbusMqttPublisher.Server.Services.Modbus.Handlers
             }
 
             return result;
+        }
+
+        public string GetRequestInformation()
+        {
+            return $"Device: {_slaveAddress}. Command: configure wirenboard events. Count: {_configurations?.Length}";
         }
     }
 }

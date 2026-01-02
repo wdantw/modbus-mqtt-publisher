@@ -11,33 +11,24 @@ namespace ModbusMqttPublisher.Server.Services.Modbus
         private readonly ModbusReadBuffer _readBuffer;
         private readonly ModbusWriteBuffer _writeBuffer;
 
-        public int RegtryCount { get; set; } = ModbusConstants.DefaultRetryCount;
-
         public ModbusRtuProtocol(IModbusChannel channel)
         {
             _channel = channel;
 
-            var buffer = new byte[ModbusConstants.MaxModbusPacketSize];
-            _readBuffer = new ModbusReadBuffer(buffer, channel);
-            _writeBuffer = new ModbusWriteBuffer(buffer);
+            //var buffer = new byte[ModbusConstants.MaxModbusPacketSize];
+            _readBuffer = new ModbusReadBuffer(new byte[ModbusConstants.MaxModbusPacketSize], channel);
+            _writeBuffer = new ModbusWriteBuffer(new byte[ModbusConstants.MaxModbusPacketSize]);
         }
 
         public TResult PerformRequest<TResult>(IModbusRequestHandler<TResult> handler)
         {
-            // todo: реализовать ретраи
-            return PerformRequestCore(handler);
-        }
-
-
-        private TResult PerformRequestCore<TResult>(IModbusRequestHandler<TResult> handler)
-        {
             _channel.DiscardInBuffer();
+            _writeBuffer.Reset();
+            _readBuffer.Reset();
 
             // ==============================================
             // отправка запроса
             // ==============================================
-
-            _writeBuffer.Reset();
 
             // address + functionCode
             var outHeader = _writeBuffer.Alloc(2);
@@ -57,18 +48,38 @@ namespace ModbusMqttPublisher.Server.Services.Modbus
             // получение ответа
             // ==============================================
 
-            _readBuffer.Reset();
+            byte inAddress;
+            ModbusFunctionCode inFunctionCode;
+            int skipedBytes = 0;
+            if (handler.SkeepStartWbArbitration)
+            {
+                while (true)
+                {
+                    var b = _readBuffer.Read(1)[0];
+                    if (b == 0xFF)
+                    {
+                        skipedBytes++;
+                        continue;
+                    }
 
-            // address + functionCode
-            var inHeader = _readBuffer.Read(2);
-            var inAddress = inHeader[0];
-            var inFunctionCode = (ModbusFunctionCode)inHeader[1];
+                    inAddress = b;
+                    break;
+                }
+                inFunctionCode = (ModbusFunctionCode)_readBuffer.Read(1)[0];
+            }
+            else
+            {
+                // address + functionCode
+                var inHeader = _readBuffer.Read(2);
+                inAddress = inHeader[0];
+                inFunctionCode = (ModbusFunctionCode)inHeader[1];
+            }
 
             if ((inFunctionCode & ModbusFunctionCode.ErrorCodeMask) != 0)
             {
                 // errorCode + crc
                 var errorBody = _readBuffer.Read(3);
-                CheckCrc();
+                CheckCrc(skipedBytes);
                 throw new ModbusException(inAddress, inFunctionCode & ~ModbusFunctionCode.ErrorCodeMask, (ModbusErrorCode)errorBody[0]);
             }
 
@@ -83,14 +94,14 @@ namespace ModbusMqttPublisher.Server.Services.Modbus
 
             // crc
             _readBuffer.Read(2);
-            CheckCrc();
+            CheckCrc(skipedBytes);
 
             return result;
         }
 
-        private void CheckCrc()
+        private void CheckCrc(int skipedBytes)
         {
-            var wholeMessage = _readBuffer.Whole();
+            var wholeMessage = _readBuffer.Whole().Slice(skipedBytes);
 
             var calculatedCrc = Crc16.CalculateLE(wholeMessage.Slice(0, wholeMessage.Length - 2));
             var messageCrc = ByteOrderUtils.ToUInt16LE(wholeMessage.Slice(wholeMessage.Length - 2));
@@ -100,6 +111,13 @@ namespace ModbusMqttPublisher.Server.Services.Modbus
                 var messageStr = BitConverter.ToString(_readBuffer.Buffer, 0, _readBuffer.Position);
                 throw new ModbusCrcException($"Получен ответ с некорректной CRC суммой: {messageStr}");
             }
+        }
+
+        public string GetLastRequestData()
+        {
+            var requestStr = BitConverter.ToString(_writeBuffer.Buffer, 0, _writeBuffer.Position);
+            var answerStr = BitConverter.ToString(_readBuffer.Buffer, 0, _readBuffer.Position);
+            return ">> " + requestStr + Environment.NewLine + "<< " + answerStr;
         }
     }
 }

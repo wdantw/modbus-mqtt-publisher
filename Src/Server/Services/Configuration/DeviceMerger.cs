@@ -7,17 +7,10 @@ namespace ModbusMqttPublisher.Server.Services.Configuration
         public static T MergeReadParameters<T>(this T dest, ReadParameters overrides)
             where T : ReadParameters
         {
-            dest.MinSleepTimeout = overrides.MinSleepTimeout ?? dest.MinSleepTimeout;
-            dest.AllowWbEvents = overrides.AllowWbEvents ?? dest.AllowWbEvents;
             dest.MaxRegHole = overrides.MaxRegHole ?? dest.MaxRegHole;
             dest.MaxBitHole = overrides.MaxBitHole ?? dest.MaxBitHole;
             dest.MaxReadRegisters = overrides.MaxReadRegisters ?? dest.MaxReadRegisters;
             dest.MaxReadBit = overrides.MaxReadBit ?? dest.MaxReadBit;
-			dest.ReadTimeout = overrides.ReadTimeout ?? dest.ReadTimeout;
-			dest.WriteTimeout = overrides.WriteTimeout ?? dest.WriteTimeout;
-			dest.WriteRetryCount = overrides.WriteRetryCount ?? dest.WriteRetryCount;
-			dest.ReadRetryCount = overrides.ReadRetryCount ?? dest.ReadRetryCount;
-			dest.ErrorSleepTimeout = overrides.ErrorSleepTimeout ?? dest.ErrorSleepTimeout;
 			return dest;
         }
 
@@ -74,8 +67,14 @@ namespace ModbusMqttPublisher.Server.Services.Configuration
             dest.DataBits = overrides.DataBits ?? dest.DataBits;
             dest.Parity = overrides.Parity ?? dest.Parity;
 			dest.StopBits = overrides.StopBits ?? dest.StopBits;
-			
-			dest.Devices = overrides.Devices.Select(d =>
+            dest.MinSleepTimeout = overrides.MinSleepTimeout ?? dest.MinSleepTimeout;
+            dest.RetryCount = overrides.RetryCount ?? dest.RetryCount;
+            dest.ErrorSleepTimeout = overrides.ErrorSleepTimeout ?? dest.ErrorSleepTimeout;
+            dest.ReadTimeout = overrides.ReadTimeout ?? dest.ReadTimeout;
+            dest.WriteTimeout = overrides.WriteTimeout ?? dest.WriteTimeout;
+            dest.AllowWbEvents = overrides.AllowWbEvents ?? dest.AllowWbEvents;
+
+            dest.Devices = overrides.Devices.Select(d =>
                 new ModbusDeviceComplete()
                     .MergeReadParameters(dest)
                     .MergeDevice(d, typeMap, globalModifiers)

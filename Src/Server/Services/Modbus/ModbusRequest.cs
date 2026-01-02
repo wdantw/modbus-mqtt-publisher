@@ -6,8 +6,5 @@ namespace ModbusMqttPublisher.Server.Services.Modbus
         byte SlaveAddress,
         ushort StartRegister,
         ushort RegisterCount,
-        RegisterType RegisterType,
-        int RetryCount,
-        TimeSpan ReadTimeout,
-        TimeSpan WriteTimeout);
+        RegisterType RegisterType);
 }

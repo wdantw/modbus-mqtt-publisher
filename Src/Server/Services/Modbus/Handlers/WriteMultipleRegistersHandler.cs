@@ -12,7 +12,7 @@ namespace ModbusMqttPublisher.Server.Services.Modbus.Handlers
 
         public WriteMultipleRegistersHandler(byte requestSlaveAddress, ushort requestStartRegister, ushort[] requestValues)
         {
-            if (requestValues.Length > ModbusConstants.BitRegisterMaxWritePerRequest)
+            if (requestValues.Length > ModbusConstants.WordRegisterMaxWritePerRequest)
                 throw new ArgumentOutOfRangeException(nameof(requestValues));
 
             _requestSlaveAddress = requestSlaveAddress;
@@ -23,6 +23,8 @@ namespace ModbusMqttPublisher.Server.Services.Modbus.Handlers
         public ModbusFunctionCode RequestFunctionCode => ModbusFunctionCode.WriteMultipleRegisters;
 
         public byte RequestSlaveAddress => _requestSlaveAddress;
+
+        public bool SkeepStartWbArbitration => false;
 
         public void WriteRequest(IChannelDataWriter writer)
         {
@@ -52,6 +54,11 @@ namespace ModbusMqttPublisher.Server.Services.Modbus.Handlers
                 throw new ModbusFormatException("Неверное количество регистров в ответе");
 
             return NoResult.Value;
+        }
+
+        public string GetRequestInformation()
+        {
+            return $"Device: {_requestSlaveAddress}. Command: Write multiple registers. Start address: {_requestStartRegister}. Count: {_requestValues.Length}";
         }
     }
 }

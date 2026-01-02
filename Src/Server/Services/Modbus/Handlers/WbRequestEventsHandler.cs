@@ -35,6 +35,8 @@ namespace ModbusMqttPublisher.Server.Services.Modbus.Handlers
 
         public byte RequestSlaveAddress => ModbusConstants.BroadcastAddress;
 
+        public bool SkeepStartWbArbitration => true;
+
         public void WriteRequest(IChannelDataWriter writer)
         {
             var requestData = writer.Alloc(5);
@@ -88,6 +90,7 @@ namespace ModbusMqttPublisher.Server.Services.Modbus.Handlers
                     {
                         eventData = new byte[eventDataSize];
                         dataBytes.Slice(dataOffset, eventDataSize).CopyTo(eventData);
+                        dataOffset += eventDataSize;
                     }
 
                     events[eventIndex] = new WbEvent(eventType, eventId, eventData);
@@ -98,6 +101,11 @@ namespace ModbusMqttPublisher.Server.Services.Modbus.Handlers
             }
 
             return new WbEvents(eventCount, acceptFlag, header.AnswerAddress, events);
+        }
+
+        public string GetRequestInformation()
+        {
+            return $"Request wirenboard events. Min address: {_minSlaveAddress}. Accept address {_acceptEventsSlaveAddress} with flag {_acceptEventsFlag}";
         }
     }
 }

@@ -9,8 +9,12 @@ namespace ModbusMqttPublisher.Server.Services.Modbus.Handlers
 
         byte RequestSlaveAddress { get; }
 
+        bool SkeepStartWbArbitration { get; }
+
         TResult ReadAnswer(ModbusHeader header, IChannelDataReader reader);
 
         void WriteRequest(IChannelDataWriter writer);
+
+        string GetRequestInformation();
     }
 }

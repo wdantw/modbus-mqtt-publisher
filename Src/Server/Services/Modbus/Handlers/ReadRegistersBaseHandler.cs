@@ -21,6 +21,8 @@ namespace ModbusMqttPublisher.Server.Services.Modbus.Handlers
 
         public byte RequestSlaveAddress => _requestSlaveAddress;
 
+        public bool SkeepStartWbArbitration => false;
+
         public void WriteRequest(IChannelDataWriter writer)
         {
             ByteOrderUtils.WriteBE(writer.Alloc(2), _requestStartRegister);
@@ -40,6 +42,11 @@ namespace ModbusMqttPublisher.Server.Services.Modbus.Handlers
                 throw new ModbusFormatException("Размер данных в ответе больше ожидаемого");
 
             return GetResult(reader.Read(answerBytesCount), _requestRegisterCount);
+        }
+
+        public string GetRequestInformation()
+        {
+            return $"Device: {_requestSlaveAddress}. Command: read command {RequestFunctionCode.ToString()}. Start address: {_requestStartRegister}. Count: {_requestRegisterCount}";
         }
     }
 }

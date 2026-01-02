@@ -21,6 +21,8 @@ namespace ModbusMqttPublisher.Server.Services.Modbus.Handlers
 
         public byte RequestSlaveAddress => _requestSlaveAddress;
 
+        public bool SkeepStartWbArbitration => false;
+
         public void WriteRequest(IChannelDataWriter writer)
         {
             ByteOrderUtils.WriteBE(writer.Alloc(2), _requestRegisterAddress);
@@ -39,6 +41,11 @@ namespace ModbusMqttPublisher.Server.Services.Modbus.Handlers
                 throw new ModbusFormatException("Неверное значение регистра в ответе");
 
             return NoResult.Value;
+        }
+
+        public string GetRequestInformation()
+        {
+            return $"Device: {_requestSlaveAddress}. Command: Write single register {_requestRegisterAddress}.";
         }
     }
 }

@@ -1,7 +1,9 @@
 {
   "Logging": {
     "LogLevel": {
-      "Default": "Information"
+      "Default": "Information",
+      "ModbusMqttPublisher.Server.Services.Modbus.ModbusClient1": "Trace",
+      "ModbusMqttPublisher.Server.Services.ModbusQueueService1":  "Debug"
     }
   },
 
@@ -16,7 +18,7 @@
       "DataBits": 8,
       "Parity": "None",
       "StopBits": "Two",
-      "AllowWbEvents": false,
+      "AllowWbEvents": true,
       "Devices": [
         {
           "SlaveAddress": 116,

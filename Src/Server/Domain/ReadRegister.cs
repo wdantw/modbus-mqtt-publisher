@@ -2,6 +2,7 @@
 using ModbusMqttPublisher.Server.Contracts;
 using ModbusMqttPublisher.Server.Contracts.Configs;
 using ModbusMqttPublisher.Server.Contracts.Configs.Enums;
+using ModbusMqttPublisher.Server.Services.Modbus.Enums;
 using ModbusMqttPublisher.Server.Services.Values;
 
 namespace ModbusMqttPublisher.Server.Domain
@@ -31,6 +32,10 @@ namespace ModbusMqttPublisher.Server.Domain
         public DateTime NextReadTime { get; private set; }
 
         public bool WWbEventsSupport { get; }
+
+        public WbEventPriority WbEventRequestedPriority => WbEventPriority.Low;
+        
+        public WbEventPriority WbEventActualPriority { get; set; } = WbEventPriority.Disabled;
 
         public ReadRegister(ModbusRegisterCompleted settings, IReadPriorityCallbacks<ReadRegister> callbacks, string baseName)
         {
@@ -63,6 +68,9 @@ namespace ModbusMqttPublisher.Server.Domain
 
         private void SetNextReadTime(DateTime nextReadTime, DateTime accessTime)
         {
+            if (WbEventActualPriority != WbEventPriority.Disabled)
+                nextReadTime = DateTime.MaxValue;
+
             var compareRes = nextReadTime.CompareTo(NextReadTime);
             NextReadTime = nextReadTime;
 
