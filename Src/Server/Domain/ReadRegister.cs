@@ -33,7 +33,7 @@ namespace ModbusMqttPublisher.Server.Domain
 
         public bool WWbEventsSupport { get; }
 
-        public WbEventPriority WbEventRequestedPriority => WbEventPriority.Low;
+        public WbEventPriority WbEventRequestedPriority { get; }
         
         public WbEventPriority WbEventActualPriority { get; set; } = WbEventPriority.Disabled;
 
@@ -56,6 +56,7 @@ namespace ModbusMqttPublisher.Server.Domain
             NextReadTime = DateTime.MinValue + (_readPeriod ?? TimeSpan.FromDays(365));
 
             WWbEventsSupport = settings.WbEvents ?? false;
+            WbEventRequestedPriority = settings.WbEventPriority ?? WbEventPriority.Low;
 
             _registerValue = RegisterValueStorageFactory.Create(
                 settings.Scale,
