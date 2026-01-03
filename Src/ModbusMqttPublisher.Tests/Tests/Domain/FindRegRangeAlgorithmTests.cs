@@ -143,6 +143,80 @@ namespace ModbusMqttPublisher.Tests.Tests.Domain
             result.Should().BeNull();
         }
 
+
+        [Fact]
+        public void TestAlgorithm7()
+        {
+            // два окна
+
+            // arrange
+            var registers = new RegisterCollectionState()
+                .Add(1, 1, 1)
+                .Add(2, 1, -1)
+                .Add(3, 1, 3)
+                .Add(4, 1, -1)
+                .Add(5, 1, 1)
+                .Add(6, 1, -1);
+
+            // act
+            var result = FindRegRangeAlgorithm.Find(6, 1, registers);
+
+            // asserts
+            result.Should().NotBeNull();
+            result!.Value.StartIndex.Should().Be(0);
+            result!.Value.Length.Should().Be(5);
+        }
+
+        [Fact]
+        public void TestAlgorithm8()
+        {
+            // допустимая дыры входит после горячего
+
+            // arrange
+            var registers = new RegisterCollectionState()
+                .Add(1, 1, 1)
+                .Add(2, 1, 1)
+                .Add(3, 1, -1)
+                .Add(4, 1, 3)
+                .Add(5, 1, -1)
+                .Add(6, 1, 2);
+
+            // act
+            var result = FindRegRangeAlgorithm.Find(3, 1, registers);
+
+            // asserts
+            result.Should().NotBeNull();
+            result!.Value.StartIndex.Should().Be(3);
+            result!.Value.Length.Should().Be(3);
+        }
+
+        [Fact]
+        public void TestAlgorithm9()
+        {
+            // не смещает старт при попытке дотянуться до следующего регистра если в итоге не вышло
+
+            // arrange
+            var registers = new RegisterCollectionState()
+                .Add(1, 1, 1)
+                .Add(2, 1, 1)
+                .Add(3, 1, 1)
+                .Add(4, 1, 1)
+                .Add(5, 1, 1)
+                .Add(6, 1, 3)
+                .Add(7, 1, 5)
+                .Add(8, 1, -1)
+                .Add(9, 1, -1)
+                .Add(10, 1, 2);
+
+            // act
+            var result = FindRegRangeAlgorithm.Find(4, 2, registers);
+
+            // asserts
+            result.Should().NotBeNull();
+            result!.Value.StartIndex.Should().Be(3);
+            result!.Value.Length.Should().Be(4);
+        }
+
         private class Register
         {
             public ushort StartAddress { get; set; }

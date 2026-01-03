@@ -10,19 +10,31 @@
             if (!registers.NeedReadingNow(hottestRegister))
                 return null;
 
-            var startRegister = 0;
-            while (!registers.NeedReadingNow(startRegister))
-            {
-                // Достигли конца массива. нет регистров готовых для чтения
-                if (startRegister + 1 >= registers.Count)
-                    return null;
+            // берем самый приоритетный и сдвигаем диапазон к началу, не более чем на допустимый размер окна, исключая недопустимые окна
+            var currRegister = hottestRegister;
+            var startRegister = currRegister;
 
-                startRegister++;
+            while (currRegister > 0 && registers.EndAddress(hottestRegister) - registers.StartAddress(currRegister - 1) <= maxRegisterCount)
+            {
+                currRegister--;
+
+                if (registers.NeedReadingNow(currRegister))
+                {
+                    if (registers.StartAddress(startRegister) - registers.EndAddress(currRegister) > maxHoleSize)
+                        break;
+
+                    startRegister = currRegister;
+                }
+                else
+                {
+                    if (registers.StartAddress(startRegister) - registers.StartAddress(currRegister) > maxHoleSize)
+                        break;
+                }
             }
 
-            var currRegister = startRegister;
-            var lastRegister = startRegister;
-            bool hotInRange = startRegister == hottestRegister;
+            // найденный диапазон startRegister - hottestRegister. расширяем его уже вперед
+            currRegister = hottestRegister;
+            var lastRegister = hottestRegister;
 
             while (currRegister + 1 < registers.Count)
             {
@@ -33,7 +45,7 @@
                 bool holeSizeExceeded = holeSize > maxHoleSize;
 
                 // в полученном диапазоне есть необходимый регистр, добавление еще одного нарушит ограничение на размер "дыры"
-                if (holeSizeExceeded && hotInRange)
+                if (holeSizeExceeded)
                     break;
 
                 // регистр не нужнадется в чтении или его время еще не настало, не учитываем в расчете
@@ -53,10 +65,11 @@
                     // сдвигаем начало диапазона так, что бы диапазон уложился в ограничение maxRegisterCount
                     bool cancelMove = false;
                     bool startRegChanged = false;
+                    var startRegisterBackup = startRegister;
                     while (registers.EndAddress(currRegister) - registers.StartAddress(startRegister) > maxRegisterCount)
                     {
-                        // если текущий регистр менее приоритетный, чем первый, то останавливаем поиск
-                        cancelMove = hotInRange && registers.HasMorePriority(startRegister, currRegister);
+                        // если текущий регистр менее приоритетный, чем первый, то останавливаем поиск (эта проверка позволяет самому приоритетному не выйти из диапазона)
+                        cancelMove = registers.HasMorePriority(startRegister, currRegister);
 
                         if (cancelMove)
                             break;
@@ -69,6 +82,7 @@
                     {
                         // может быть ситуация, что следующий регистр является поддиапазоном от текущего и он возможно мог бы влезть в окно для чтения
                         // но тогда результатом будут не подряд идущие регистры.
+                        startRegister = startRegisterBackup;
                         break;
                     }
 
@@ -89,7 +103,6 @@
                 }
 
                 lastRegister = currRegister;
-                hotInRange = hotInRange || currRegister == hottestRegister;
             }
 
             return (startRegister, lastRegister - startRegister + 1);
