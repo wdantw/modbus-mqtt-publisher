@@ -2,6 +2,7 @@
 using ModbusMqttPublisher.Server.Contracts;
 using ModbusMqttPublisher.Server.Contracts.Configs;
 using ModbusMqttPublisher.Server.Contracts.Configs.Enums;
+using ModbusMqttPublisher.Server.Services.Modbus.Enums;
 using ModbusMqttPublisher.Server.Services.Values;
 
 namespace ModbusMqttPublisher.Server.Domain
@@ -13,8 +14,6 @@ namespace ModbusMqttPublisher.Server.Domain
         private readonly IReadPriorityCallbacks<ReadRegister> _callbacks;
         private readonly IRegisterValueStorageWithInConverter _registerValue;
         private bool _registerValueIsActual = false;
-
-        private DateTime _nextReadTime;
 
         public ushort StartNumber { get; }
         
@@ -30,7 +29,13 @@ namespace ModbusMqttPublisher.Server.Domain
         
         public IPublishValueSorage PublishValue => _registerValue;
 
-        public DateTime NextReadTime => _nextReadTime;
+        public DateTime NextReadTime { get; private set; }
+
+        public bool WWbEventsSupport { get; }
+
+        public WbEventPriority WbEventRequestedPriority { get; }
+        
+        public WbEventPriority WbEventActualPriority { get; set; } = WbEventPriority.Disabled;
 
         public ReadRegister(ModbusRegisterCompleted settings, IReadPriorityCallbacks<ReadRegister> callbacks, string baseName)
         {
@@ -48,7 +53,10 @@ namespace ModbusMqttPublisher.Server.Domain
                 throw new Exception("Регистр выходит за гарицы адресного пространства");
             EndNumber = (ushort)(StartNumber + SizeInRegisters);
 
-            _nextReadTime = DateTime.MinValue + (_readPeriod ?? TimeSpan.FromDays(365));
+            NextReadTime = DateTime.MinValue + (_readPeriod ?? TimeSpan.FromDays(365));
+
+            WWbEventsSupport = settings.WbEvents ?? false;
+            WbEventRequestedPriority = settings.WbEventPriority ?? WbEventPriority.Low;
 
             _registerValue = RegisterValueStorageFactory.Create(
                 settings.Scale,
@@ -56,14 +64,16 @@ namespace ModbusMqttPublisher.Server.Domain
                 settings.DecimalSeparator,
                 settings.CompareDiff,
                 RegisterType,
-                registerFormat
-                );
+                registerFormat);
         }
 
         private void SetNextReadTime(DateTime nextReadTime, DateTime accessTime)
         {
-            var compareRes = nextReadTime.CompareTo(_nextReadTime);
-            _nextReadTime = nextReadTime;
+            if (WbEventActualPriority != WbEventPriority.Disabled)
+                nextReadTime = DateTime.MaxValue;
+
+            var compareRes = nextReadTime.CompareTo(NextReadTime);
+            NextReadTime = nextReadTime;
 
             if (compareRes < 0)
                 _callbacks.ChildItemPriorityUp(this, accessTime);
@@ -105,6 +115,12 @@ namespace ModbusMqttPublisher.Server.Domain
             var res = _registerValue.FromModbus(data) || !_registerValueIsActual;
             _registerValueIsActual = true;
             return res || _forcePublishOnRead;
+        }
+
+        public void DeviceRebooted()
+        {
+            NextReadTime = DateTime.MinValue;
+            WbEventActualPriority = WbEventPriority.Disabled;
         }
     }
 }

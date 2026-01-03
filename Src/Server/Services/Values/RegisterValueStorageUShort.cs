@@ -18,7 +18,7 @@ namespace ModbusMqttPublisher.Server.Services.Values
         protected override ushort ReadFromMudbus(ReadOnlySpan<ushort> modbusData)
             => RegBitConverter.ReadDataUInt16(modbusData);
 
-        protected override void WriteFromMudbus(Span<ushort> modbusData, ushort value)
+        protected override void WriteToMudbus(Span<ushort> modbusData, ushort value)
             => RegBitConverter.WriteData(modbusData, value);
     }
 }

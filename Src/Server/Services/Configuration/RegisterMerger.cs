@@ -3,7 +3,7 @@ using System.Text.RegularExpressions;
 
 namespace ModbusMqttPublisher.Server.Services.Configuration
 {
-	public static class RegisterMerger
+    public static class RegisterMerger
     {
 
         public static void MergeRegisterCommonParams(this ModbusRegisterCommonParams dest, ModbusRegisterCommonParams overrides)
@@ -11,6 +11,7 @@ namespace ModbusMqttPublisher.Server.Services.Configuration
 			dest.Scale = overrides.Scale ?? dest.Scale;
             dest.Precision = overrides.Precision ?? dest.Precision;
             dest.WbEvents = overrides.WbEvents ?? dest.WbEvents;
+            dest.WbEventPriority = overrides.WbEventPriority ?? dest.WbEventPriority;
             dest.ReadPeriod = overrides.ReadPeriod ?? dest.ReadPeriod;
             dest.Tags = overrides.Tags ?? dest.Tags;
             dest.Name = overrides.Name ?? dest.Name;

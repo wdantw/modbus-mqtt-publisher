@@ -1,12 +1,14 @@
 {
   "Logging": {
     "LogLevel": {
-      "Default": "Information"
+      "Default": "Information",
+      "ModbusMqttPublisher.Server.Services.Modbus.ModbusClient1": "Trace",
+      "ModbusMqttPublisher.Server.Services.ModbusQueueService1":  "Debug"
     }
   },
 
   "MqttOptions" :  {
-    "TcpAddress":  "192.168.50.45"
+    "TcpAddress":  "127.0.0.1"
   },
 
   "ModbusPorts": [
@@ -16,12 +18,15 @@
       "DataBits": 8,
       "Parity": "None",
       "StopBits": "Two",
-      "AllowWbEvents": false,
+      "AllowWbEvents": true,
       "Devices": [
         {
           "SlaveAddress": 116,
           "Name": "Sensors/Rel1/",
-          "ParentTypeName":  "WB-MR6CU v.2"
+          "ParentTypeName":  "WB-MR6CU v.2",
+          "Modifiers":[
+            { "Names": "UpTime", "ReadPeriod": "00:00:00.05", "ForcePublish": "true" }
+          ]
         }
       ],
       "ErrorSleepTimeout": "00:00:05.000",

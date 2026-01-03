@@ -1,4 +1,5 @@
 ﻿using ModbusMqttPublisher.Server.Contracts.Configs.Enums;
+using ModbusMqttPublisher.Server.Services.Modbus.Enums;
 
 namespace ModbusMqttPublisher.Server.Contracts.Configs
 {
@@ -15,9 +16,14 @@ namespace ModbusMqttPublisher.Server.Contracts.Configs
         public int? Precision { get; set; }
 
         /// <summary>
-        /// указывает, что данный регистр генерирует события WirenBoard и его можно не опрашивать стандатным образом
+        /// указывает, что данный регистр поддерживает события WirenBoard и его можно не опрашивать стандатным образом
         /// </summary>
         public bool? WbEvents { get; set; }
+
+        /// <summary>
+        /// Желаемый приоритет события, а так же возможность его отключить
+        /// </summary>
+        public WbEventPriority? WbEventPriority { get; set; }
 
         /// <summary>
         /// период опроса регистра

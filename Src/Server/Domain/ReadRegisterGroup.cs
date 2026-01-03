@@ -1,13 +1,17 @@
 ﻿using ModbusMqttPublisher.Server.Common;
 using ModbusMqttPublisher.Server.Contracts;
 using ModbusMqttPublisher.Server.Contracts.Configs;
-using System.Diagnostics.CodeAnalysis;
+using ModbusMqttPublisher.Server.Domain.FindRegRange;
+using ModbusMqttPublisher.Server.Services.Modbus.Enums;
+using ModbusMqttPublisher.Server.Services.Modbus.Handlers;
+using System.Collections.Frozen;
 
 namespace ModbusMqttPublisher.Server.Domain
 {
     public class ReadRegisterGroup : ReadComparableGroup<ReadRegisterGroup, ReadRegister>
     {
         private readonly ReadRegister[] _registers;
+        private readonly IDictionary<ushort, ReadRegister> _registersByAddress;
 
         protected override ReadRegister[] Items => _registers;
         
@@ -36,131 +40,127 @@ namespace ModbusMqttPublisher.Server.Domain
                 throw new ApplicationException("Группа должна содержать хотя бы один регистр");
 
             RegisterType = _registers.Select(r => r.RegisterType).Distinct().Single();
+            _registersByAddress = _registers.ToFrozenDictionary(r => r.StartNumber);
         }
 
-        private struct RegistertWithIndex
+        private sealed class FindRegRangeAlgorithmRegisters : IFindRegRangeAlgorithmRegisters
         {
             private readonly ReadRegister[] _registers;
+            private readonly DateTime _currTime;
+            private readonly int _mostPriorityItemIndex;
 
-            public RegistertWithIndex(ReadRegister[] registers, int index)
+            public FindRegRangeAlgorithmRegisters(ReadRegister[] registers, DateTime currTime, int mostPriorityItemIndex)
             {
                 _registers = registers;
-                Index = index;
-                Register = registers[index];
+                _currTime = currTime;
+                _mostPriorityItemIndex = mostPriorityItemIndex;
             }
 
-            public ReadRegister Register { get; }
-            public int Index { get; }
+            public int Count => _registers.Length;
 
-            public bool CanIncrement() => Index + 1 < _registers.Length;
-            public RegistertWithIndex Increment() => new RegistertWithIndex(_registers, Index + 1);
+            public int GetMostPriorityItemIndex() => _mostPriorityItemIndex;
 
-            public static bool operator ==(RegistertWithIndex r1, RegistertWithIndex r2) => r1.Index == r2.Index;
-            public static bool operator !=(RegistertWithIndex r1, RegistertWithIndex r2) => !(r1 == r2);
+            public bool NeedReadingNow(int index) => _registers[index].NeedReadingNow(_currTime);
 
-            public override bool Equals([NotNullWhen(true)] object? obj)
-                => (obj is RegistertWithIndex) && ((RegistertWithIndex)obj) == this;
+            public ushort StartAddress(int index) => _registers[index].StartNumber;
 
-            public override int GetHashCode() => Index.GetHashCode();
+            public ushort EndAddress(int index) => _registers[index].EndNumber;
 
-            public override string ToString()
-                => $"Reg {Index} (Number: {Register.StartNumber})";
+            public bool HasMoreOrEqualsPriority(int index1, int index2) => _registers[index1].HasMoreOrEqualsPriorityForRead(_registers[index2]);
         }
 
         public ArraySegment<ReadRegister>? GetReadTask(int maxRegisterCount, int maxHoleSize, DateTime currTime)
         {
+            var hottestIndex = 0;
             var hottestRegister = EnsureMostPrioriyItem();
-            
-            var startRegister = new RegistertWithIndex(_registers, 0);
-            while (!startRegister.Register.NeedReadingNow(currTime))
-            {
-                if (startRegister.Register == hottestRegister)
-                {
-                    // приоритетный регистр не нуждается в чтении
-                    return null;
-                }
+            while (_registers[hottestIndex] != hottestRegister)
+                hottestIndex++;
 
-                if (!startRegister.CanIncrement())
-                {
-                    // Достигли конца массива. нет регистров готовых для чтения
-                    return null;
-                }
-                startRegister = startRegister.Increment();
+            var result = FindRegRangeAlgorithm.Find(maxRegisterCount, maxHoleSize, new FindRegRangeAlgorithmRegisters(_registers, currTime, hottestIndex));
+
+            if (result == null)
+                return null;
+
+            return _registers.GetSegment(result.Value.StartIndex, result.Value.Length);
+        }
+    
+        public ReadRegister? GetRegisterByAddress(ushort address)
+        {
+            if (!_registersByAddress.TryGetValue(address, out var result))
+                return null;
+
+            return result;
+        }
+    
+        private WBEventType GetWbEventType()
+        {
+            switch (RegisterType)
+            {
+                case RegisterType.Coil: return WBEventType.Coil;
+                case RegisterType.DiscreteInput: return WBEventType.Discrete;
+                case RegisterType.HoldingRegister: return WBEventType.Holding;
+                case RegisterType.InputRegister: return WBEventType.Input;
+                default:
+                    throw new InvalidOperationException();
             }
+        }
 
-            var lastRegister = startRegister;
-            bool hotInRange = startRegister.Register == hottestRegister;
+        public IEnumerable<WbEventConfig> GetWbEventConfigurations()
+        {
+            ushort? startRegConfigNumber = null;
+            var priorities = new List<WbEventPriority>();
 
-            var currRegister = startRegister;
-            while (currRegister.CanIncrement())
+            foreach (var reg in _registers)
             {
-                currRegister = currRegister.Increment();
-
-                // размер "дыры" включает регистры, которые не нуждаются в чтении
-                var holeSize = currRegister.Register.StartNumber - lastRegister.Register.EndNumber;
-                bool holeSizeExceeded = holeSize > maxHoleSize;
-
-                // в полученном диапазоне есть необходимый регистр, добавление еще одного нарушит ограничение на размер "дыры"
-                if (holeSizeExceeded && hotInRange)
-                    break;
-
-                // регистр не нужнадется в чтении или его время еще не настало, не учитываем в расчете
-                if (!currRegister.Register.NeedReadingNow(currTime))
+                if (!reg.WWbEventsSupport)
                     continue;
 
-                if (holeSizeExceeded)
+                if (startRegConfigNumber.HasValue && startRegConfigNumber.Value + priorities.Count != reg.StartNumber)
                 {
-                    // hotInRange == false, иначе вышли бы из цикла раньше
-                    // размер "дыры" превышен, но необходимого регистра нет в диапазоне. поиск диапазона чтения заново
-                    startRegister = currRegister;
-                }
-                else
-                {
-                    // пытаемся добавить текущий регистр в диапазон для чтения, учитывая все условия.
-                    
-                    // сдвигаем начало диапазона так, что бы диапазон уложился в ограничение maxRegisterCount
-                    bool cancelMove = false;
-                    bool startRegChanged = false;
-                    while (currRegister.Register.EndNumber - startRegister.Register.StartNumber > maxRegisterCount)
-                    {
-                        // если текущий регистр менее приоритетный, чем первый, то останавливаем поиск
-                        cancelMove = hotInRange && startRegister.Register.HasMorePriorityForRead(currRegister.Register);
-
-                        if (cancelMove)
-                            break;
-
-                        startRegister = startRegister.Increment();
-                        startRegChanged = true;
-                    }
-
-                    if (cancelMove)
-                    {
-                        // может быть ситуация, что следующий регистр является поддиапазоном от текущего и он возможно мог бы влезть в окно для чтения
-                        // но тогда результатом будут не подряд идущие регистры.
-                        break;
-                    }
-
-                    if (startRegChanged)
-                    {
-                        // исключем регистры, которые попали "за одно"
-                        while (!startRegister.Register.NeedReadingNow(currTime))
-                        {
-                            if (startRegister == lastRegister)
-                            {
-                                startRegister = currRegister;
-                                break;
-                            }
-
-                            startRegister = startRegister.Increment();
-                        }
-                    }
+                    yield return new WbEventConfig(GetWbEventType(), startRegConfigNumber.Value, priorities.ToArray());
+                    priorities.Clear();
+                    startRegConfigNumber = null;
                 }
 
-                lastRegister = currRegister;
-                hotInRange = hotInRange || currRegister.Register == hottestRegister;
+                if (!startRegConfigNumber.HasValue)
+                    startRegConfigNumber = reg.StartNumber;
+
+                priorities.Add(reg.WbEventRequestedPriority);
             }
 
-            return _registers.GetSegment(startRegister.Index, lastRegister.Index - startRegister.Index + 1);
+            if (startRegConfigNumber.HasValue)
+                yield return new WbEventConfig(GetWbEventType(), startRegConfigNumber.Value, priorities.ToArray());
+        }
+
+        public void ApplyWbEventsConfiguration(WbEventConfig config)
+        {
+            for (int startRegIndex = 0; startRegIndex < _registers.Length; startRegIndex++)
+            {
+                var startReg = _registers[startRegIndex];
+
+                if (startReg.StartNumber != config.StartRegister)
+                    continue;
+
+                for (int regIndex = startRegIndex; regIndex < _registers.Length; regIndex++)
+                {
+                    var reg = _registers[regIndex];
+                    
+                    if (reg.StartNumber >= config.StartRegister + config.EventPriorities.Length)
+                        return;
+
+                    reg.WbEventActualPriority = config.EventPriorities[reg.StartNumber - config.StartRegister];
+                }
+
+                return;
+            }
+
+            throw new InvalidOperationException("Не найдены регистры для применения настроек");
+        }
+
+        public void DeviceRebooted()
+        {
+            foreach (var reg in _registers)
+                reg.DeviceRebooted();
         }
     }
 }

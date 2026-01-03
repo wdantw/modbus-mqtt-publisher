@@ -73,6 +73,7 @@ namespace ModbusMqttPublisher.Server.Services.Configuration
 
             var restul = ports.Value
                 .Select(p => new ModbusPortComplete().MergePort(p, typeMap, modifires))
+                .Where(p => p.Devices?.Length > 0)
                 .Select(p => new ReadPort(p))
                 .ToArray();
 

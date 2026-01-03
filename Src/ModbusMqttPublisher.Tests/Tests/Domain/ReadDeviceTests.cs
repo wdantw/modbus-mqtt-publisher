@@ -12,12 +12,10 @@ namespace ModbusMqttPublisher.Tests.Tests.Domain
     {
         private static readonly ModbusDeviceComplete devSettings1 =  new ModbusDeviceComplete()
         {
-            MinSleepTimeout = null,
             MaxRegHole = 1,
             MaxBitHole = 2,
             MaxReadRegisters = 3,
             MaxReadBit = 5,
-            ErrorSleepTimeout = TimeSpan.FromMinutes(1),
             Registers = new List<ModbusRegisterCompleted>() {
                 new() { Number = 1, ReadPeriod = TimeSpan.FromSeconds(4), RegType = ConfigRegisterType.HoldingRegister },
                 new() { Number = 2, ReadPeriod = TimeSpan.FromSeconds(3), RegType = ConfigRegisterType.HoldingRegister },

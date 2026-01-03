@@ -5,13 +5,13 @@
         Default, // Uint16 или Bool в зависимости от типа регистра
         Uint32,
         Uint64,
-        Uint32BE,
-        Uint64BE,
+        Uint32LE,
+        Uint64LE,
         Int16,
         Int32,
         Int64,
-        Int32BE,
-        Int64BE,
+        Int32LE,
+        Int64LE,
         String,
     }
 
@@ -24,13 +24,13 @@
                 case RegisterFormat.Default:
                 case RegisterFormat.Uint32:
                 case RegisterFormat.Uint64:
-                case RegisterFormat.Uint32BE:
-                case RegisterFormat.Uint64BE:
+                case RegisterFormat.Uint32LE:
+                case RegisterFormat.Uint64LE:
                 case RegisterFormat.Int16:
                 case RegisterFormat.Int32:
                 case RegisterFormat.Int64:
-                case RegisterFormat.Int32BE:
-                case RegisterFormat.Int64BE:
+                case RegisterFormat.Int32LE:
+                case RegisterFormat.Int64LE:
                 case RegisterFormat.String:
                     return format;
                 default:
@@ -58,13 +58,13 @@
                     return 1;
                 case RegisterFormat.Uint32:
                 case RegisterFormat.Int32:
-                case RegisterFormat.Uint32BE:
-                case RegisterFormat.Int32BE:
+                case RegisterFormat.Uint32LE:
+                case RegisterFormat.Int32LE:
                     return 2;
                 case RegisterFormat.Uint64:
                 case RegisterFormat.Int64:
-                case RegisterFormat.Uint64BE:
-                case RegisterFormat.Int64BE:
+                case RegisterFormat.Uint64LE:
+                case RegisterFormat.Int64LE:
                     return 4;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(format));

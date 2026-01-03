@@ -31,6 +31,17 @@
                 case ConfigRegisterType.InputRegisterS32:
                 case ConfigRegisterType.InputRegisterS64:
                 case ConfigRegisterType.InputRegisterStr:
+
+                case ConfigRegisterType.HoldingRegister32LE:
+                case ConfigRegisterType.HoldingRegister64LE:
+                case ConfigRegisterType.HoldingRegisterS32LE:
+                case ConfigRegisterType.HoldingRegisterS64LE:
+
+                case ConfigRegisterType.InputRegister32LE:
+                case ConfigRegisterType.InputRegister64LE:
+                case ConfigRegisterType.InputRegisterS32LE:
+                case ConfigRegisterType.InputRegisterS64LE:
+
                     return regType;
                 default:
                     throw new ArgumentException($"Указан неверный тип регистра {regType}");

@@ -3,45 +3,35 @@ using ModbusMqttPublisher.Server.Contracts;
 using ModbusMqttPublisher.Server.Contracts.Configs;
 using ModbusMqttPublisher.Server.Contracts.Configs.Enums;
 using ModbusMqttPublisher.Server.Contracts.Settings;
+using ModbusMqttPublisher.Server.Services.Modbus.Enums;
+using ModbusMqttPublisher.Server.Services.Modbus.Handlers;
 using System.Collections.Frozen;
 
 namespace ModbusMqttPublisher.Server.Domain
 {
     public class ReadDevice : ReadComparableGroup<ReadDevice, ReadRegisterGroup>
     {
-        private readonly TimeSpan? _minSleepTimeout;
-        private readonly TimeSpan _errorSleepTimeout;
-        
-        
         private readonly int _maxReadBit;
         private readonly int _maxReadRegisters;
         private readonly int _maxBitHole;
         private readonly int _maxRegHole;
-        private readonly FrozenDictionary<string, ReadRegister> _allRegisters;
-
+        private readonly FrozenDictionary<string, ReadRegister> _allRegistersByTopic;
+        private readonly FrozenDictionary<RegisterType, ReadRegisterGroup> _groupsByType;
 
         private readonly ReadRegisterGroup[] _groups;
-        private DateTime? _nextAllowedAccessTime;
 
         protected override ReadRegisterGroup[] Items => _groups;
-        protected override ReadDevice This => this;
-        public ReadRegisterGroup[] Groups => _groups;
-        public string Name { get; }
-        public byte SlaveAddress { get; }
-        public int ReadRetryCount { get; }
-        public TimeSpan ReadTimeout { get; }
-        public TimeSpan WriteTimeout { get; }
-
-
-        public override DateTime NextReadTime
-        {
-            get
-            {
-                var baseNextReadTime = base.NextReadTime;
-                return _nextAllowedAccessTime.HasValue && _nextAllowedAccessTime.Value > baseNextReadTime ? _nextAllowedAccessTime.Value : baseNextReadTime;
-            }
-        }
         
+        protected override ReadDevice This => this;
+        
+        public ReadRegisterGroup[] Groups => _groups;
+        
+        public string Name { get; }
+        
+        public byte SlaveAddress { get; }
+        
+        public bool NeedWbEventsConfigure { get; private set; } = true;
+
         public ReadDevice(ModbusDeviceComplete devSettings, IReadPriorityCallbacks<ReadDevice> callbacks, string? portName, string serialName)
             : base (callbacks)
         {
@@ -57,19 +47,9 @@ namespace ModbusMqttPublisher.Server.Domain
             _maxRegHole = devSettings.MaxRegHole ?? DefaultSettings.MaxRegHole;
             if (_maxRegHole <= 0) throw new ArgumentException("MaxRegHole должен быть больше 0");
 
-            ReadRetryCount = devSettings.ReadRetryCount ?? DefaultSettings.DefaultReadRetryCount;
-
             SlaveAddress = devSettings.SlaveAddress.AssertNotNull();
             var defaultDeviceName = MqttPath.TopicPathDelimeter + MqttPath.CombineTopicPath(portName ?? serialName, $"Dev{SlaveAddress}");
 
-            _minSleepTimeout = devSettings.MinSleepTimeout;
-
-            _errorSleepTimeout = devSettings.ErrorSleepTimeout ?? DefaultSettings.DefaultErrorSleepTimeout;
-            
-            ReadTimeout = devSettings.ReadTimeout ?? DefaultSettings.DefaultPortTimeout;
-            
-            WriteTimeout = devSettings.WriteTimeout ?? DefaultSettings.DefaultPortTimeout;
-            
             Name = string.IsNullOrWhiteSpace(devSettings.Name) ? defaultDeviceName : MqttPath.CombineTopicPath(portName, devSettings.Name);
 
             _groups = devSettings.Registers
@@ -77,27 +57,11 @@ namespace ModbusMqttPublisher.Server.Domain
                 .Select(g => new ReadRegisterGroup(g, this, Name))
                 .ToArray();
 
-            _allRegisters = _groups
+            _allRegistersByTopic = _groups
                 .SelectMany(x => x.Registers)
                 .ToFrozenDictionary(x => x.Name);
-        }
 
-        protected override void ChildItemPriorityDown(ReadRegisterGroup register, DateTime accessTime)
-        {
-            base.ChildItemPriorityDown(register, accessTime);
-            _nextAllowedAccessTime = _minSleepTimeout.HasValue ? accessTime + _minSleepTimeout.Value : null;
-        }
-
-        protected override void ChildItemPriorityUp(ReadRegisterGroup changedItem, DateTime accessTime)
-        {
-            base.ChildItemPriorityUp(changedItem, accessTime);
-            _nextAllowedAccessTime = _minSleepTimeout.HasValue ? accessTime + _minSleepTimeout.Value : null;
-        }
-
-        protected override void ChildItemAccessFailed(ReadRegisterGroup changedItem, DateTime accessTime)
-        {
-            base.ChildItemAccessFailed(changedItem, accessTime);
-            _nextAllowedAccessTime = accessTime + _errorSleepTimeout;
+            _groupsByType = _groups.ToFrozenDictionary(g => g.RegisterType);
         }
 
         public ReadTask? GetReadTask(DateTime currTime)
@@ -117,10 +81,62 @@ namespace ModbusMqttPublisher.Server.Domain
 
         public WriteTask? GetWriteTask(string topicName)
         {
-            if (!_allRegisters.TryGetValue(topicName, out var register))
+            if (!_allRegistersByTopic.TryGetValue(topicName, out var register))
                 return null;
 
             return new WriteTask(register, this);
+        }
+
+        public void DeviceRebooted()
+        {
+            NeedWbEventsConfigure = true;
+            foreach (var group in _groups)
+                group.DeviceRebooted();
+        }
+
+        public ReadRegister? GetRegisterByAddress(RegisterType type, ushort address)
+        {
+            if (!_groupsByType.TryGetValue(type, out var group))
+                return null;
+
+            return group.GetRegisterByAddress(address);
+        }
+
+        public IEnumerable<WbEventConfig> GetWbEventConfigurations()
+        {
+            foreach(var group in _groups)
+                foreach(var c in group.GetWbEventConfigurations())
+                    yield return c;
+
+            // повышение приоритера System - Rebooted приводит к тому, что в списке событий будет одно не обработанное, но при этом выдаваться оно не будет
+            yield return new WbEventConfig(WBEventType.System, (ushort)WbSystemEventId.Rebooted, new WbEventPriority[] { WbEventPriority.Disabled });
+        }
+
+        public void ApplyWbEventsConfiguration(WbEventConfig[] configurations)
+        {
+            foreach(var cfg in configurations)
+            {
+                switch (cfg.EventType)
+                {
+                    case WBEventType.Coil:
+                        _groupsByType[RegisterType.Coil].ApplyWbEventsConfiguration(cfg);
+                        break;
+                    case WBEventType.Discrete:
+                        _groupsByType[RegisterType.DiscreteInput].ApplyWbEventsConfiguration(cfg);
+                        break;
+                    case WBEventType.Holding:
+                        _groupsByType[RegisterType.HoldingRegister].ApplyWbEventsConfiguration(cfg);
+                        break;
+                    case WBEventType.Input:
+                        _groupsByType[RegisterType.InputRegister].ApplyWbEventsConfiguration(cfg);
+                        break;
+                    case WBEventType.System:
+                        // todo прочекать что лишнего нет
+                        break;
+                }
+            }
+
+            NeedWbEventsConfigure = false;
         }
     }
 }

@@ -44,7 +44,6 @@ namespace ModbusMqttPublisher.Server.Services.Modbus
             _writeCallCounter = meter.CreateCounter<int>("serial.write.calls", "calls", "Количество вызовов метода записи в последовательынй порт");
             _writeBytesCounter = meter.CreateCounter<int>("serial.write.bytes", "byte", "Количество байт, записанных в последовательный порт");
             _writeCallDurationCounter = new DiagnosticTimeCounter(meter.CreateCounter<double>("serial.write.duration", "ms", "Время, проведенное в методах записи в последовательный порт"));
-
         }
 
         public int InfiniteTimeout => SerialPort.InfiniteTimeout;
@@ -61,15 +60,19 @@ namespace ModbusMqttPublisher.Server.Services.Modbus
             set => _serialPort.WriteTimeout = value;
         }
 
-        public void DiscardInBuffer() => _serialPort.DiscardInBuffer();
+        public void DiscardInBuffer()
+            => _serialPort.DiscardInBuffer();
 
-        public int Read(byte[] buffer, int offset, int count)
+        public void Read(byte[] buffer, int offset, int count)
         {
             _readCallCounter.Add(1);
             using var _ = _readCallDurationCounter.GetStartHolder();
-            var result = _serialPort.Read(buffer, offset, count);
-            _readBytesCounter.Add(result);
-            return result;
+
+            var readedCount = 0;
+            while (readedCount < count)
+                readedCount += _serialPort.Read(buffer, offset + readedCount, count - readedCount);
+
+            _readBytesCounter.Add(count);
         }
 
         public void Write(byte[] buffer, int offset, int count)

@@ -15,9 +15,9 @@
             => ulong.Parse(value);
 
         protected override ulong ReadFromMudbus(ReadOnlySpan<ushort> modbusData)
-            => RegBitConverter.ReadDataUInt64LE(modbusData);
+            => RegBitConverter.ReadDataUInt64BE(modbusData);
 
-        protected override void WriteFromMudbus(Span<ushort> modbusData, ulong value)
-            => RegBitConverter.WriteDataLE(modbusData, value);
+        protected override void WriteToMudbus(Span<ushort> modbusData, ulong value)
+            => RegBitConverter.WriteDataBE(modbusData, value);
     }
 }

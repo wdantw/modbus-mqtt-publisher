@@ -18,7 +18,7 @@
         protected override short ReadFromMudbus(ReadOnlySpan<ushort> modbusData)
             => RegBitConverter.ReadDataInt16(modbusData);
 
-        protected override void WriteFromMudbus(Span<ushort> modbusData, short value)
+        protected override void WriteToMudbus(Span<ushort> modbusData, short value)
             => RegBitConverter.WriteData(modbusData, value);
     }
 }

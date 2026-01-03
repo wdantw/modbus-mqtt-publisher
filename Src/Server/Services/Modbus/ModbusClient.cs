@@ -1,158 +1,162 @@
-﻿using ModbusMqttPublisher.Server.Contracts;
+﻿using ModbusMqttPublisher.Server.Common;
+using ModbusMqttPublisher.Server.Contracts;
 using ModbusMqttPublisher.Server.Domain;
-using NModbus;
-using NModbus.Serial;
+using ModbusMqttPublisher.Server.Services.Modbus.Handlers;
 
 namespace ModbusMqttPublisher.Server.Services.Modbus
 {
-    public record ModbusRequest(
-        byte SlaveAddress,
-        ushort StartRegister,
-        ushort RegisterCount,
-        RegisterType RegisterType,
-        int RetryCount,
-        TimeSpan ReadTimeout,
-        TimeSpan WriteTimeout
-        );
-
     public class ModbusClient : IModbusClient
     {
-        IModbusMaster modbusMaster;
-        IModbusSerialPort serialPort;
-        ILogger<ModbusClient> logger;
+        private readonly ModbusRtuProtocol _modbusMaster;
+        private readonly IModbusSerialPort _serialPort;
+        private readonly ILogger<ModbusClient> _logger;
+
+        private readonly int _retryCount;
+        private readonly TimeSpan _errorSleepTimeout;
+        private readonly TimeSpan _minSleepTimeout;
+        
+        private TimeSpan _nextAllowedAccessTime;
 
         public ModbusClient(
             ReadPort settings,
-            IModbusFactory modbusFactory,
             ILogger<ModbusClient> logger,
             IModbusSerialPortFactory modbusSerialPortFactory)
         {
-            this.logger = logger;
-            serialPort = modbusSerialPortFactory.Create(settings);
-            modbusMaster = modbusFactory.CreateRtuMaster(serialPort);
+            _logger = logger;
+            _serialPort = modbusSerialPortFactory.Create(settings);
+            _modbusMaster = new ModbusRtuProtocol(_serialPort);
+
+            _serialPort.ReadTimeout = (int)settings.ReadTimeout.TotalMilliseconds;
+            _serialPort.WriteTimeout = (int)settings.WriteTimeout.TotalMilliseconds;
+            
+            _retryCount = Math.Max(settings.RetryCount, 1);
+            _errorSleepTimeout = settings.ErrorSleepTimeout;
+            _minSleepTimeout = settings.MinSleepTimeout;
+
+            _nextAllowedAccessTime = MonotonicTime.TimeSinceStart;
         }
 
         public void Dispose()
         {
-            modbusMaster.Dispose();
-            serialPort.Dispose();
+            _serialPort.Dispose();
         }
 
-        public Task CheckConnection(TimeSpan reconnectTimeout, CancellationToken cancellationToken)
-            => serialPort.CheckConnection(reconnectTimeout, cancellationToken);
-
-        private void InitRequest(string msg, ModbusRequest request)
+        public async Task<TResult> PerformRequest<TResult>(IModbusRequestHandler<TResult> handler, CancellationToken cancellationToken)
         {
-            logger.LogTrace($"{msg}. Адрес {request.SlaveAddress}, Тип Рег: {request.RegisterType}, Номер рег: {request.StartRegister}, Кол-во: {request.RegisterCount}");
+            var remainingAttempts = _retryCount;
 
-            modbusMaster.Transport.Retries = request.RetryCount;
-            modbusMaster.Transport.ReadTimeout = (int)request.ReadTimeout.TotalMilliseconds;
-            modbusMaster.Transport.WriteTimeout = (int)request.WriteTimeout.TotalMilliseconds;
-        }
-
-        private Exception CreteExeption(Exception inner, string message, ModbusRequest request)
-        {
-            return new Exception($"{message}. Адрес {request.SlaveAddress}, Тип Рег: {request.RegisterType}, Номер рег: {request.StartRegister}, Кол-во: {request.RegisterCount}", inner);
-        }
-
-        public async Task<bool[]> ReadBitRegistersAsync(ModbusRequest request)
-        {
-            InitRequest("Чтение из modbus", request);
-
-            try
+            if (_logger.IsEnabled(LogLevel.Trace))
             {
-                switch (request.RegisterType)
+                _logger.LogTrace("Отправка запроса \"{requestInformation}\"", handler.GetRequestInformation());
+            }
+
+            while (true)
+            {
+                remainingAttempts--;
+
+                try
                 {
-                    case RegisterType.Coil:
-                        return await modbusMaster.ReadCoilsAsync(request.SlaveAddress, request.StartRegister, request.RegisterCount);
-                    case RegisterType.DiscreteInput:
-                        return await modbusMaster.ReadInputsAsync(request.SlaveAddress, request.StartRegister, request.RegisterCount);
-                    default:
-                        throw new NotImplementedException();
+                    var currTime = MonotonicTime.TimeSinceStart;
+
+                    if (_nextAllowedAccessTime > currTime)
+                        await Task.Delay(_nextAllowedAccessTime - currTime, cancellationToken);
+
+                    await _serialPort.CheckConnection(_errorSleepTimeout, cancellationToken);
+
+                    var result = _modbusMaster.PerformRequest(handler);
+
+                    if (_logger.IsEnabled(LogLevel.Trace))
+                    {
+                        _logger.LogTrace("Обмен данными через Modbus:" + Environment.NewLine + _modbusMaster.GetLastRequestData());
+                    }
+
+                    _nextAllowedAccessTime = MonotonicTime.TimeSinceStart + _minSleepTimeout;
+
+                    return result;
+                }
+                catch (Exception ex)
+                {
+                    _nextAllowedAccessTime = MonotonicTime.TimeSinceStart + _errorSleepTimeout;
+
+                    if (remainingAttempts <= 0)
+                        throw new Exception($"Ошибка выполнения modbus запроса: \"{handler.GetRequestInformation()}\".", ex);
+
+                    if (_logger.IsEnabled(LogLevel.Warning))
+                        _logger.LogWarning(ex, $"Ошибка выполнения modbus запроса \"{handler.GetRequestInformation()}\". Осталось попыток: {remainingAttempts}");
                 }
             }
-            catch (Exception ex)
-            {
-                throw CreteExeption(ex, "Ошибка чтения из Modbus", request);
-            }
         }
 
-        public async Task<ushort[]> ReadShortRegistersAsync(ModbusRequest request)
+        public async Task<bool[]> ReadBitRegistersAsync(ModbusRequest request, CancellationToken cancellationToken)
         {
-            InitRequest("Чтение из modbus", request);
-
-            try
+            switch (request.RegisterType)
             {
-                switch (request.RegisterType)
-                {
-                    case RegisterType.HoldingRegister:
-                        return await modbusMaster.ReadHoldingRegistersAsync(request.SlaveAddress, request.StartRegister, request.RegisterCount);
-                    case RegisterType.InputRegister:
-                        return await modbusMaster.ReadInputRegistersAsync(request.SlaveAddress, request.StartRegister, request.RegisterCount);
-                    default:
-                        throw new NotImplementedException();
-                }
-            }
-            catch (Exception ex)
-            {
-                throw CreteExeption(ex, "Ошибка чтения из Modbus", request);
+                case RegisterType.Coil:
+                    return await PerformRequest(new ReadCoilsHandler(requestSlaveAddress: request.SlaveAddress, requestStartRegister: request.StartRegister, requestRegisterCount: request.RegisterCount), cancellationToken);
+                case RegisterType.DiscreteInput:
+                    return await PerformRequest(new ReadDescreteInputsHandler(requestSlaveAddress: request.SlaveAddress, requestStartRegister: request.StartRegister, requestRegisterCount: request.RegisterCount), cancellationToken);
+                default:
+                    throw new NotImplementedException();
             }
         }
 
-        public async Task WriteBitRegistersAsync(ModbusRequest request, bool[] data)
+        public async Task<ushort[]> ReadShortRegistersAsync(ModbusRequest request, CancellationToken cancellationToken)
         {
-            InitRequest("Запись в modbus", request);
-
-            try
+            switch (request.RegisterType)
             {
-
-                if (request.RegisterType != RegisterType.Coil)
-                    throw new Exception($"Нельзя писать в регистр {request.RegisterType}");
-
-                if (request.RegisterCount != data.Length)
-                    throw new Exception($"Количество переданных данных не соответсвует запрошенному количесву регистров для записи");
-
-                if (request.RegisterCount == 1)
-                {
-                    await modbusMaster.WriteSingleCoilAsync(request.SlaveAddress, request.StartRegister, data[0]);
-                }
-                else
-                {
-                    await modbusMaster.WriteMultipleCoilsAsync(request.SlaveAddress, request.StartRegister, data);
-                }
-            }
-            catch (Exception ex)
-            {
-                throw CreteExeption(ex, "Ошибка записи в Modbus", request);
+                case RegisterType.HoldingRegister:
+                    return await PerformRequest(new ReadHoldingRegistersHandler(requestSlaveAddress: request.SlaveAddress, requestStartRegister: request.StartRegister, requestRegisterCount: request.RegisterCount), cancellationToken);
+                case RegisterType.InputRegister:
+                    return await PerformRequest(new ReadInputRegistersHandler(requestSlaveAddress: request.SlaveAddress, requestStartRegister: request.StartRegister, requestRegisterCount: request.RegisterCount), cancellationToken);
+                default:
+                    throw new NotImplementedException();
             }
         }
 
-        public async Task WriteShortRegistersAsync(ModbusRequest request, ushort[] data)
+        public async Task WriteBitRegistersAsync(ModbusRequest request, bool[] data, CancellationToken cancellationToken)
         {
-            InitRequest("Запись в modbus", request);
+            if (request.RegisterType != RegisterType.Coil)
+                throw new Exception($"Нельзя писать в регистр {request.RegisterType}");
 
-            try
+            if (request.RegisterCount != data.Length)
+                throw new Exception($"Количество переданных данных не соответсвует запрошенному количесву регистров для записи");
+
+            if (request.RegisterCount == 1)
             {
-                if (request.RegisterType != RegisterType.HoldingRegister)
-                    throw new Exception($"Нельзя писать в регистр {request.RegisterType}");
-
-                if (request.RegisterCount != data.Length)
-                    throw new Exception($"Количество переданных данных не соответсвует запрошенному количесву регистров для записи");
-
-                if (request.RegisterCount == 1)
-                {
-                    await modbusMaster.WriteSingleRegisterAsync(request.SlaveAddress, request.StartRegister, data[0]);
-                }
-                else
-                {
-                    await modbusMaster.WriteMultipleRegistersAsync(request.SlaveAddress, request.StartRegister, data);
-                }
+                await PerformRequest(new WriteSingleCoilHandler(requestSlaveAddress: request.SlaveAddress, requestRegisterAddress: request.StartRegister, requestValue: data[0]), cancellationToken);
             }
-            catch (Exception ex)
+            else
             {
-                throw CreteExeption(ex, "Ошибка записи в Modbus", request);
+                await PerformRequest(new WriteMultipleCoilsHandler(requestSlaveAddress: request.SlaveAddress, requestStartRegister: request.StartRegister, requestValues: data), cancellationToken);
             }
         }
 
+        public async Task WriteShortRegistersAsync(ModbusRequest request, ushort[] data, CancellationToken cancellationToken)
+        {
+            if (request.RegisterType != RegisterType.HoldingRegister)
+                throw new Exception($"Нельзя писать в регистр {request.RegisterType}");
+
+            if (request.RegisterCount != data.Length)
+                throw new Exception($"Количество переданных данных не соответсвует запрошенному количесву регистров для записи");
+
+            if (request.RegisterCount == 1)
+            {
+                await PerformRequest(new WriteSingleRegisterHandler(requestSlaveAddress: request.SlaveAddress, requestRegisterAddress: request.StartRegister, requestValue: data[0]), cancellationToken);
+            }
+            else
+            {
+                await PerformRequest(new WriteMultipleRegistersHandler(requestSlaveAddress: request.SlaveAddress, requestStartRegister: request.StartRegister, requestValues: data), cancellationToken);
+            }
+        }
+
+        public async Task<WbEvents?> WbRequestEventsAsync(byte minSlaveAddress, byte acceptEventsSlaveAddress, byte acceptEventsFlag, CancellationToken cancellationToken)
+        {
+            return await PerformRequest(new WbRequestEventsHandler(minSlaveAddress, acceptEventsSlaveAddress, acceptEventsFlag), cancellationToken);
+        }
+
+        public async Task<WbEventConfig[]> WbConfigureEvents(byte slaveAddress, WbEventConfig[] configurations, CancellationToken cancellationToken)
+        {
+            return await PerformRequest(new WbConfigureEventsHandler(slaveAddress, configurations), cancellationToken);
+        }
     }
 }
