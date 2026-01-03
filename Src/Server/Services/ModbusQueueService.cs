@@ -317,7 +317,23 @@ namespace ModbusMqttPublisher.Server.Services
                     break;
 
                 if (readResult.Events == null || readResult.Events.Length == 0)
-                    throw new Exception("Запрос событий wb не вернул ни одного события");
+                {
+                    logger.LogDebug("Запрос событий wb не вернул ни одного события");
+
+                    // возникает если поставить System-Rebooted событию приоритет Hi до его акцепта. пропустим эти события. акцептировать из бессмысленно - это не исправляет глюка
+                    if (readResult.SlaveAddress >= settings.MaxSlaveAddress)
+                    {
+                        break;
+                    }
+                    else
+                    {
+                        minSlaveAddress = (byte)(readResult.SlaveAddress + 1);
+                        acceptSlaveAddress = readResult.SlaveAddress;
+                        acceptFlag = readResult.AcceptFlag;
+                        minSlaveAddressEventCountLimit = byte.MaxValue;
+                        continue;
+                    }
+                }
 
                 var device = settings.GetDeice(readResult.SlaveAddress);
 

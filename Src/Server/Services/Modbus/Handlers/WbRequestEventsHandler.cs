@@ -78,7 +78,8 @@ namespace ModbusMqttPublisher.Server.Services.Modbus.Handlers
 
                 events = new WbEvent[eventCount];
                 int dataOffset = 0;
-                for (var eventIndex = 0; eventIndex < eventCount; eventIndex++)
+                int eventIndex = 0;
+                while (eventIndex < eventCount && dataOffset < dataBytes.Length)
                 {
                     var eventDataSize = dataBytes[dataOffset++];
                     var eventType = (WBEventType)dataBytes[dataOffset++];
@@ -93,11 +94,19 @@ namespace ModbusMqttPublisher.Server.Services.Modbus.Handlers
                         dataOffset += eventDataSize;
                     }
 
-                    events[eventIndex] = new WbEvent(eventType, eventId, eventData);
+                    events[eventIndex++] = new WbEvent(eventType, eventId, eventData);
                 }
 
                 if (dataOffset != dataByteCount)
                     throw new ModbusFormatException("Неверный размер с данными о событиях");
+
+                if (eventIndex < eventCount)
+                {
+                    // такое может быть если какое то соыбтие не влезло или из за глюка с System-Rebooted
+                    var newEvents = new WbEvent[eventIndex];
+                    Array.Copy(events, newEvents, eventIndex);
+                    events = newEvents;
+                }
             }
 
             return new WbEvents(eventCount, acceptFlag, header.AnswerAddress, events);

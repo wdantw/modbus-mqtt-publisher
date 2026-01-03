@@ -106,6 +106,7 @@ namespace ModbusMqttPublisher.Server.Domain
                 foreach(var c in group.GetWbEventConfigurations())
                     yield return c;
 
+            // повышение приоритера System - Rebooted приводит к тому, что в списке событий будет одно не обработанное, но при этом выдаваться оно не будет
             yield return new WbEventConfig(WBEventType.System, (ushort)WbSystemEventId.Rebooted, new WbEventPriority[] { WbEventPriority.Disabled });
         }
 
