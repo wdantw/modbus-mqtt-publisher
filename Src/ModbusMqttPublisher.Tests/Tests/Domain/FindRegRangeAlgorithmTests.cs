@@ -226,7 +226,7 @@ namespace ModbusMqttPublisher.Tests.Tests.Domain
             public int Priority { get; set; }
         }
 
-        private class RegisterCollectionState : IRegisterCollectionState
+        private class RegisterCollectionState : IFindRegRangeAlgorithmRegisters
         {
             private readonly List<Register> _registers = new();
             private int? mostPriorityIndex = null;

@@ -1,6 +1,6 @@
 ﻿namespace ModbusMqttPublisher.Server.Domain.FindRegRange
 {
-    public interface IRegisterCollectionState
+    public interface IFindRegRangeAlgorithmRegisters
     {
         int Count { get; }
 

@@ -2,7 +2,7 @@
 {
     public class FindRegRangeAlgorithm
     {
-        public static (int StartIndex, int Length)? Find(int maxRegisterCount, int maxHoleSize, IRegisterCollectionState registers)
+        public static (int StartIndex, int Length)? Find(int maxRegisterCount, int maxHoleSize, IFindRegRangeAlgorithmRegisters registers)
         {
             var hottestRegister = registers.GetMostPriorityItemIndex();
 
