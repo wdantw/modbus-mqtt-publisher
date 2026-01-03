@@ -222,7 +222,7 @@ namespace ModbusMqttPublisher.Tests.Tests.Modbus
             yield return new object?[]
             {
                 "FD 46 10 00 F8 00 00 79 5B",
-                "FD 46 12 52 5D",
+                "FF FF FF FF FF FF FD 46 12 52 5D",
                 new WbRequestEventsHandler(),
                 null
             };
@@ -230,7 +230,7 @@ namespace ModbusMqttPublisher.Tests.Tests.Modbus
             yield return new object?[]
             {
                 "FD 46 10 00 F8 00 00 79 5B",
-                "01 46 11 00 01 04 00 0F 00 00 3B 73",
+                "FF FF FF FF FF FF 01 46 11 00 01 04 00 0F 00 00 3B 73",
                 new WbRequestEventsHandler(),
                 new WbEvents(1, 0, 1, new WbEvent[] { new WbEvent(WBEventType.System, (ushort)WbSystemEventId.Rebooted, null) }),
             };
