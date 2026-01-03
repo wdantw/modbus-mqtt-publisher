@@ -90,6 +90,8 @@ namespace ModbusMqttPublisher.Server.Domain
         public void DeviceRebooted()
         {
             NeedWbEventsConfigure = true;
+            foreach (var group in _groups)
+                group.DeviceRebooted();
         }
 
         public ReadRegister? GetRegisterByAddress(RegisterType type, ushort address)

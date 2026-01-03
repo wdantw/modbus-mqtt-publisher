@@ -116,5 +116,11 @@ namespace ModbusMqttPublisher.Server.Domain
             _registerValueIsActual = true;
             return res || _forcePublishOnRead;
         }
+
+        public void DeviceRebooted()
+        {
+            NextReadTime = DateTime.MinValue;
+            WbEventActualPriority = WbEventPriority.Disabled;
+        }
     }
 }

@@ -156,5 +156,11 @@ namespace ModbusMqttPublisher.Server.Domain
 
             throw new InvalidOperationException("Не найдены регистры для применения настроек");
         }
+
+        public void DeviceRebooted()
+        {
+            foreach (var reg in _registers)
+                reg.DeviceRebooted();
+        }
     }
 }
