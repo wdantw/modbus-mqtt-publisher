@@ -86,7 +86,7 @@ namespace ModbusMqttPublisher.Server.Services
                     try
                     {
                         await PerfomReadWbEvents(modbusClient, cancellationToken);
-                        _nextReadWbEvents = nextReadTime;
+                        _nextReadWbEvents = currTime;
                     }
                     catch (Exception ex)
                     {

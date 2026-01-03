@@ -141,11 +141,11 @@ namespace ModbusMqttPublisher.Server.Domain
                 if (startReg.StartNumber != config.StartRegister)
                     continue;
 
-                for (int regIndex = 0; regIndex < _registers.Length; regIndex++)
+                for (int regIndex = startRegIndex; regIndex < _registers.Length; regIndex++)
                 {
                     var reg = _registers[regIndex];
                     
-                    if (reg.StartNumber > config.StartRegister + config.EventPriorities.Length)
+                    if (reg.StartNumber >= config.StartRegister + config.EventPriorities.Length)
                         return;
 
                     reg.WbEventActualPriority = config.EventPriorities[reg.StartNumber - config.StartRegister];

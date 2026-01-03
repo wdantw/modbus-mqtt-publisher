@@ -106,7 +106,7 @@ namespace ModbusMqttPublisher.Server.Domain
                 foreach(var c in group.GetWbEventConfigurations())
                     yield return c;
 
-            yield return new WbEventConfig(WBEventType.System, (ushort)WbSystemEventId.Rebooted, new WbEventPriority[] { WbEventPriority.Low });
+            yield return new WbEventConfig(WBEventType.System, (ushort)WbSystemEventId.Rebooted, new WbEventPriority[] { WbEventPriority.Disabled });
         }
 
         public void ApplyWbEventsConfiguration(WbEventConfig[] configurations)
