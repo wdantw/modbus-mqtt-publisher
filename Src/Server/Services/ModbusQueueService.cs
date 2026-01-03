@@ -5,6 +5,7 @@ using ModbusMqttPublisher.Server.Services.Mqtt;
 using ModbusMqttPublisher.Server.Domain;
 using System.Diagnostics.Metrics;
 using ModbusMqttPublisher.Server.Services.Modbus.Enums;
+using ModbusMqttPublisher.Server.Services.Modbus.Utils;
 
 namespace ModbusMqttPublisher.Server.Services
 {
@@ -426,7 +427,7 @@ namespace ModbusMqttPublisher.Server.Services
                                 }
                             }
                             break;
-                        case WBEventType.Colil:
+                        case WBEventType.Coil:
                             {
                                 var register = device.GetRegisterByAddress(RegisterType.Coil, wbEvent.EventId);
                                 if (register != null)
@@ -445,7 +446,7 @@ namespace ModbusMqttPublisher.Server.Services
                                 }
                                 else
                                 {
-                                    logger.LogWarning("От устройства {slaveAddress} поступило событие Colil для не зарегистрированного регистра {EventId}", readResult.SlaveAddress, wbEvent.EventId);
+                                    logger.LogWarning("От устройства {slaveAddress} поступило событие Coil для не зарегистрированного регистра {EventId}", readResult.SlaveAddress, wbEvent.EventId);
                                 }
                             }
                             break;
@@ -473,8 +474,58 @@ namespace ModbusMqttPublisher.Server.Services
                             }
                             break;
                         case WBEventType.Holding:
+                            {
+                                var register = device.GetRegisterByAddress(RegisterType.HoldingRegister, wbEvent.EventId);
+                                if (register != null)
+                                {
+                                    if (wbEvent.EventData == null || wbEvent.EventData.Length == 0 || wbEvent.EventData.Length % 2 != 0)
+                                        throw new Exception($"Количество данных для регистра Holding больше нуля байт и кратно двум, но получено {wbEvent.EventData?.Length ?? 0}");
+
+                                    var modbusData = new ushort[wbEvent.EventData.Length % 2];
+                                    for(int i = 0; i < wbEvent.EventData.Length % 2; i++)
+                                        modbusData[i] = ByteOrderUtils.ToUInt16BE(wbEvent.EventData.AsSpan().Slice(i * 2, 2));
+
+                                    var needPublish = register.ReadFromModbus(readTime, modbusData);
+
+                                    logger.LogDebug("Для регистра {regName} получены данные {value}", register.Name, register.PublishValue);
+
+                                    if (needPublish)
+                                    {
+                                        await mqttBus.EnqueueMessage(register.Name, register.PublishValue.ToMqtt(), true, cancellationToken);
+                                    }
+                                }
+                                else
+                                {
+                                    logger.LogWarning("От устройства {slaveAddress} поступило событие Holding для не зарегистрированного регистра {EventId}", readResult.SlaveAddress, wbEvent.EventId);
+                                }
+                            }
                             break;
                         case WBEventType.Input:
+                            {
+                                var register = device.GetRegisterByAddress(RegisterType.InputRegister, wbEvent.EventId);
+                                if (register != null)
+                                {
+                                    if (wbEvent.EventData == null || wbEvent.EventData.Length == 0 || wbEvent.EventData.Length % 2 != 0)
+                                        throw new Exception($"Количество данных для регистра Input больше нуля байт и кратно двум, но получено {wbEvent.EventData?.Length ?? 0}");
+
+                                    var modbusData = new ushort[wbEvent.EventData.Length % 2];
+                                    for (int i = 0; i < wbEvent.EventData.Length % 2; i++)
+                                        modbusData[i] = ByteOrderUtils.ToUInt16BE(wbEvent.EventData.AsSpan().Slice(i * 2, 2));
+
+                                    var needPublish = register.ReadFromModbus(readTime, modbusData);
+
+                                    logger.LogDebug("Для регистра {regName} получены данные {value}", register.Name, register.PublishValue);
+
+                                    if (needPublish)
+                                    {
+                                        await mqttBus.EnqueueMessage(register.Name, register.PublishValue.ToMqtt(), true, cancellationToken);
+                                    }
+                                }
+                                else
+                                {
+                                    logger.LogWarning("От устройства {slaveAddress} поступило событие Input для не зарегистрированного регистра {EventId}", readResult.SlaveAddress, wbEvent.EventId);
+                                }
+                            }
                             break;
                     }
                 }

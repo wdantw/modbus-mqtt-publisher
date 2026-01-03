@@ -96,7 +96,7 @@ namespace ModbusMqttPublisher.Server.Domain
         {
             switch (RegisterType)
             {
-                case RegisterType.Coil: return WBEventType.Colil;
+                case RegisterType.Coil: return WBEventType.Coil;
                 case RegisterType.DiscreteInput: return WBEventType.Discrete;
                 case RegisterType.HoldingRegister: return WBEventType.Holding;
                 case RegisterType.InputRegister: return WBEventType.Input;

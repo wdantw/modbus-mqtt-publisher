@@ -2,7 +2,7 @@
 {
     public enum WBEventType : byte
     {
-        Colil = 1,
+        Coil = 1,
         Discrete = 2,
         Holding = 3,
         Input = 4,

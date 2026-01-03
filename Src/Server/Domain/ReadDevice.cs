@@ -118,7 +118,7 @@ namespace ModbusMqttPublisher.Server.Domain
             {
                 switch (cfg.EventType)
                 {
-                    case WBEventType.Colil:
+                    case WBEventType.Coil:
                         _groupsByType[RegisterType.Coil].ApplyWbEventsConfiguration(cfg);
                         break;
                     case WBEventType.Discrete:
