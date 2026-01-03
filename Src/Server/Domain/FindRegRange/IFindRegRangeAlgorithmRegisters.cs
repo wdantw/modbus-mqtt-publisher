@@ -12,6 +12,6 @@
         
         ushort EndAddress(int index);
 
-        bool HasMorePriority(int index1, int index2);
+        bool HasMoreOrEqualsPriority(int index1, int index2);
     }
 }

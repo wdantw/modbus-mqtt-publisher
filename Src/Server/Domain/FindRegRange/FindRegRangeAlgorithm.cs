@@ -1,7 +1,10 @@
-﻿namespace ModbusMqttPublisher.Server.Domain.FindRegRange
+﻿using System.Runtime.CompilerServices;
+
+namespace ModbusMqttPublisher.Server.Domain.FindRegRange
 {
     public class FindRegRangeAlgorithm
     {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static (int StartIndex, int Length)? Find(int maxRegisterCount, int maxHoleSize, IFindRegRangeAlgorithmRegisters registers)
         {
             var hottestRegister = registers.GetMostPriorityItemIndex();
@@ -69,7 +72,7 @@
                     while (registers.EndAddress(currRegister) - registers.StartAddress(startRegister) > maxRegisterCount)
                     {
                         // если текущий регистр менее приоритетный, чем первый, то останавливаем поиск (эта проверка позволяет самому приоритетному не выйти из диапазона)
-                        cancelMove = registers.HasMorePriority(startRegister, currRegister);
+                        cancelMove = registers.HasMoreOrEqualsPriority(startRegister, currRegister);
 
                         if (cancelMove)
                             break;

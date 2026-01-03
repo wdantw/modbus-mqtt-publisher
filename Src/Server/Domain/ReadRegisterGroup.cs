@@ -1,10 +1,10 @@
 ﻿using ModbusMqttPublisher.Server.Common;
 using ModbusMqttPublisher.Server.Contracts;
 using ModbusMqttPublisher.Server.Contracts.Configs;
+using ModbusMqttPublisher.Server.Domain.FindRegRange;
 using ModbusMqttPublisher.Server.Services.Modbus.Enums;
 using ModbusMqttPublisher.Server.Services.Modbus.Handlers;
 using System.Collections.Frozen;
-using System.Diagnostics.CodeAnalysis;
 
 namespace ModbusMqttPublisher.Server.Domain
 {
@@ -43,128 +43,45 @@ namespace ModbusMqttPublisher.Server.Domain
             _registersByAddress = _registers.ToFrozenDictionary(r => r.StartNumber);
         }
 
-        private readonly ref struct RegistertWithIndex
+        private sealed class FindRegRangeAlgorithmRegisters : IFindRegRangeAlgorithmRegisters
         {
             private readonly ReadRegister[] _registers;
+            private readonly DateTime _currTime;
+            private readonly int _mostPriorityItemIndex;
 
-            public RegistertWithIndex(ReadRegister[] registers, int index)
+            public FindRegRangeAlgorithmRegisters(ReadRegister[] registers, DateTime currTime, int mostPriorityItemIndex)
             {
                 _registers = registers;
-                Index = index;
-                Register = registers[index];
+                _currTime = currTime;
+                _mostPriorityItemIndex = mostPriorityItemIndex;
             }
 
-            public ReadRegister Register { get; }
+            public int Count => _registers.Length;
 
-            public int Index { get; }
+            public int GetMostPriorityItemIndex() => _mostPriorityItemIndex;
 
-            public bool CanIncrement() => Index + 1 < _registers.Length;
+            public bool NeedReadingNow(int index) => _registers[index].NeedReadingNow(_currTime);
 
-            public RegistertWithIndex Increment() => new RegistertWithIndex(_registers, Index + 1);
+            public ushort StartAddress(int index) => _registers[index].StartNumber;
 
-            public static bool operator == (RegistertWithIndex r1, RegistertWithIndex r2) => r1.Index == r2.Index;
+            public ushort EndAddress(int index) => _registers[index].EndNumber;
 
-            public static bool operator != (RegistertWithIndex r1, RegistertWithIndex r2) => !(r1 == r2);
-
-            public override int GetHashCode()
-                => throw new InvalidOperationException();
-
-            public override bool Equals([NotNullWhen(true)] object? obj)
-                => throw new InvalidOperationException();
+            public bool HasMoreOrEqualsPriority(int index1, int index2) => _registers[index1].HasMoreOrEqualsPriorityForRead(_registers[index2]);
         }
 
         public ArraySegment<ReadRegister>? GetReadTask(int maxRegisterCount, int maxHoleSize, DateTime currTime)
         {
+            var hottestIndex = 0;
             var hottestRegister = EnsureMostPrioriyItem();
+            while (_registers[hottestIndex] != hottestRegister)
+                hottestIndex++;
 
-            // приоритетный регистр не нуждается в чтении
-            if (!hottestRegister.NeedReadingNow(currTime))
+            var result = FindRegRangeAlgorithm.Find(maxRegisterCount, maxHoleSize, new FindRegRangeAlgorithmRegisters(_registers, currTime, hottestIndex));
+
+            if (result == null)
                 return null;
 
-            var startRegister = new RegistertWithIndex(_registers, 0);
-            while (!startRegister.Register.NeedReadingNow(currTime))
-            {
-                // Достигли конца массива. нет регистров готовых для чтения
-                if (!startRegister.CanIncrement())
-                    return null;
-
-                startRegister = startRegister.Increment();
-            }
-
-            var currRegister = startRegister;
-            
-            var lastRegister = startRegister;
-            bool hotInRange = startRegister.Register == hottestRegister;
-
-            while (currRegister.CanIncrement())
-            {
-                currRegister = currRegister.Increment();
-
-                // размер "дыры" включает регистры, которые не нуждаются в чтении
-                var holeSize = currRegister.Register.StartNumber - lastRegister.Register.EndNumber;
-                bool holeSizeExceeded = holeSize > maxHoleSize;
-
-                // в полученном диапазоне есть необходимый регистр, добавление еще одного нарушит ограничение на размер "дыры"
-                if (holeSizeExceeded && hotInRange)
-                    break;
-
-                // регистр не нужнадется в чтении или его время еще не настало, не учитываем в расчете
-                if (!currRegister.Register.NeedReadingNow(currTime))
-                    continue;
-
-                if (holeSizeExceeded)
-                {
-                    // hotInRange == false, иначе вышли бы из цикла раньше
-                    // размер "дыры" превышен, но необходимого регистра нет в диапазоне. поиск диапазона чтения заново
-                    startRegister = currRegister;
-                }
-                else
-                {
-                    // пытаемся добавить текущий регистр в диапазон для чтения, учитывая все условия.
-                    
-                    // сдвигаем начало диапазона так, что бы диапазон уложился в ограничение maxRegisterCount
-                    bool cancelMove = false;
-                    bool startRegChanged = false;
-                    while (currRegister.Register.EndNumber - startRegister.Register.StartNumber > maxRegisterCount)
-                    {
-                        // если текущий регистр менее приоритетный, чем первый, то останавливаем поиск
-                        cancelMove = hotInRange && startRegister.Register.HasMorePriorityForRead(currRegister.Register);
-
-                        if (cancelMove)
-                            break;
-
-                        startRegister = startRegister.Increment();
-                        startRegChanged = true;
-                    }
-
-                    if (cancelMove)
-                    {
-                        // может быть ситуация, что следующий регистр является поддиапазоном от текущего и он возможно мог бы влезть в окно для чтения
-                        // но тогда результатом будут не подряд идущие регистры.
-                        break;
-                    }
-
-                    if (startRegChanged)
-                    {
-                        // исключем регистры, которые попали "за одно"
-                        while (!startRegister.Register.NeedReadingNow(currTime))
-                        {
-                            if (startRegister == lastRegister)
-                            {
-                                startRegister = currRegister;
-                                break;
-                            }
-
-                            startRegister = startRegister.Increment();
-                        }
-                    }
-                }
-
-                lastRegister = currRegister;
-                hotInRange = hotInRange || currRegister.Register == hottestRegister;
-            }
-
-            return _registers.GetSegment(startRegister.Index, lastRegister.Index - startRegister.Index + 1);
+            return _registers.GetSegment(result.Value.StartIndex, result.Value.Length);
         }
     
         public ReadRegister? GetRegisterByAddress(ushort address)

@@ -1,7 +1,6 @@
 ﻿using ModbusMqttPublisher.Server.Common;
 using ModbusMqttPublisher.Server.Contracts;
 using ModbusMqttPublisher.Server.Services.Modbus;
-using ModbusMqttPublisher.Server.Services.Values;
 using ModbusMqttPublisher.Server.Services.Mqtt;
 using ModbusMqttPublisher.Server.Domain;
 using System.Diagnostics.Metrics;

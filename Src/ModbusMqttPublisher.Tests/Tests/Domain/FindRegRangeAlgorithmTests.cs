@@ -236,13 +236,13 @@ namespace ModbusMqttPublisher.Tests.Tests.Domain
 
             public int GetMostPriorityItemIndex() => mostPriorityIndex!.Value;
 
-            public bool HasMorePriority(int index1, int index2) => _registers[index1].Priority >= _registers[index2].Priority;
-
             public bool NeedReadingNow(int index) => _registers[index].Priority >= 0;
 
             public ushort StartAddress(int index) => _registers[index].StartAddress;
 
             public ushort EndAddress(int index) => _registers[index].EndAddress;
+
+            public bool HasMoreOrEqualsPriority(int index1, int index2) => _registers[index1].Priority >= _registers[index2].Priority;
 
             public RegisterCollectionState Add(ushort startAddress, byte size, int priority)
             {
