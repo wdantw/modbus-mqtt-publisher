@@ -5,7 +5,6 @@
 		double _value;
 		double _scale;
 		double _compareDiff;
-		double _copyDelay;
 		int? _precision;
 		INumericRegisterValueStorageWithInConverter _sourceValue;
 		IFormatProvider _formatProvider;
@@ -16,8 +15,6 @@
 			_precision = precision;
 			_sourceValue = sourceValue;
 
-			_copyDelay = 0;
-
 			if (compareDiff.HasValue)
 			{
 				_compareDiff = compareDiff.Value;
@@ -26,8 +23,7 @@
 			{
 				if (_precision.HasValue)
 				{
-					_copyDelay = 1.0 / Math.Pow(10, _precision.Value);
-					_compareDiff = 1.01 * _copyDelay;
+					_compareDiff = 1.01 / Math.Pow(10, _precision.Value);
 				}
 				else
 				{
