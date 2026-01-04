@@ -4,7 +4,7 @@ outdir: ..\binary
 # main info
 
 package: modbus-mqtt-publisher
-version: 1.4.6
+version: 1.4.7
 architecture: arm64
 maintainer: Dant <kloundant@mail.ru>
 description: mqtt modbus gateway

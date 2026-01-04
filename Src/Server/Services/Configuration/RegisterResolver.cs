@@ -58,9 +58,9 @@ namespace ModbusMqttPublisher.Server.Services.Configuration
 
                 var defaultRowLength = step * register.ColCount.Value;
                 var minRowLength = defaultRowLength - step + regSize;
-                var colLength = register.RowLength ?? defaultRowLength;
+                var rowLength = register.RowLength ?? defaultRowLength;
 
-                if (colLength < minRowLength)
+                if (rowLength < minRowLength)
                     throw new Exception("Указан размер строки матрицы меньший чем минимальный с учетом размера регистра и шага");
 
 				var name = register.Name ?? throw new Exception($"Не указано имя для матрицы {register.NumberStart!.Value}");
@@ -69,7 +69,7 @@ namespace ModbusMqttPublisher.Server.Services.Configuration
                 {
                     for (int row = 0; row < register.RowCount.Value; row++)
                     {
-                        var number = register.NumberStart!.Value + row * colLength + col * step;
+                        var number = register.NumberStart!.Value + row * rowLength + col * step;
 
                         if (number > ushort.MaxValue)
                             throw new Exception($"Некорректные параметры массива - адрес регистра превысили значение {ushort.MaxValue}");
