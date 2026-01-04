@@ -6,7 +6,7 @@ using ModbusMqttPublisher.Server.Domain;
 using System.Diagnostics.Metrics;
 using ModbusMqttPublisher.Server.Services.Modbus.Enums;
 using ModbusMqttPublisher.Server.Services.Modbus.Utils;
-using Microsoft.Extensions.Logging;
+using ModbusMqttPublisher.Server.Services.Values;
 
 namespace ModbusMqttPublisher.Server.Services
 {
@@ -22,6 +22,8 @@ namespace ModbusMqttPublisher.Server.Services
         private readonly DiagnosticTimeCounter _readCallDurationCounter;
         private readonly Counter<int> _writeCallCounter;
         private readonly DiagnosticTimeCounter _writeCallDurationCounter;
+        private readonly Counter<int> _wbEventCycleCounter;
+        private readonly DiagnosticTimeCounter _wbEventCycleDurationCounter;
 
         private DateTime _nextReadWbEvents = DateTime.MinValue;
 
@@ -44,9 +46,11 @@ namespace ModbusMqttPublisher.Server.Services
             _readCallDurationCounter = new DiagnosticTimeCounter(meter.CreateCounter<double>("publisher.queue.read.duration", "ms", "Время, проведенное в методах чтения регистров"));
             _writeCallCounter = meter.CreateCounter<int>("publisher.queue.write.calls", "calls", "Количество вызовов метода записи в регистры");
             _writeCallDurationCounter = new DiagnosticTimeCounter(meter.CreateCounter<double>("publisher.queue.write.duration", "ms", "Время, проведенное в методах записи в регистры"));
+            _wbEventCycleCounter = meter.CreateCounter<int>("publisher.queue.wbevent.cycles", "calls", "Количество циклов опроса событий wirenboard");
+            _wbEventCycleDurationCounter = new DiagnosticTimeCounter(meter.CreateCounter<double>("publisher.queue.wbevent.duration", "ms", "Время, проведенное в методе опроса событий wirenboard"));
         }
 
-		public async Task Run(CancellationToken cancellationToken)
+        public async Task Run(CancellationToken cancellationToken)
         {
             await Task.Yield();
 
@@ -149,13 +153,7 @@ namespace ModbusMqttPublisher.Server.Services
 
                 foreach(var reg in readTask.Registers)
                 {
-					var needPublish = reg.ReadFromModbus(readTime, readResult.AsSpan().Slice(reg.StartNumber - readTask.StartNumber, 1));
-
-					if (needPublish)
-					{
-                        logger.LogDebug("Для регистра {regName} обновлены данные {value}", reg.Name, reg.PublishValue);
-                        await mqttBus.EnqueueMessage(reg.Name, reg.PublishValue.ToMqtt(), true, cancellationToken);
-					}
+                    await ReadRegisterFromModbus(reg, readResult.GetSegment(reg.StartNumber - readTask.StartNumber, 1), readTime, cancellationToken);
                 }
             }
             else
@@ -181,13 +179,7 @@ namespace ModbusMqttPublisher.Server.Services
 
 				foreach (var reg in readTask.Registers)
 				{
-					var needPubliish = reg.ReadFromModbus(readTime, readResult.AsSpan().Slice(reg.StartNumber - readTask.StartNumber, reg.SizeInRegisters));
-
-                    if (needPubliish)
-					{
-                        logger.LogDebug("Для регистра {regName} обновлены данные {value}", reg.Name, reg.PublishValue);
-                        await mqttBus.EnqueueMessage(reg.Name, reg.PublishValue.ToMqtt(), true, cancellationToken);
-					}
+                    await ReadRegisterFromModbus(reg, readResult.GetSegment(reg.StartNumber - readTask.StartNumber, reg.SizeInRegisters), readTime, cancellationToken);
                 }
             }
 
@@ -299,6 +291,9 @@ namespace ModbusMqttPublisher.Server.Services
 
         private async Task PerfomReadWbEvents(IModbusClient modbus, CancellationToken cancellationToken)
         {
+            _wbEventCycleCounter.Add(1);
+            using var _ = _wbEventCycleDurationCounter.GetStartHolder();
+
             var readTime = DateTime.Now;
 
             byte minSlaveAddress = settings.MinSlaveAddress;
@@ -439,13 +434,7 @@ namespace ModbusMqttPublisher.Server.Services
                                     if (wbEvent.EventData?.Length != 1)
                                         throw new Exception("Количество данных для регистра Coil ожидалось - 1 байт");
 
-                                    var needPublish = register.ReadFromModbus(readTime, new bool[] { wbEvent.EventData[0] != 0 });
-
-                                    if (needPublish)
-                                    {
-                                        logger.LogDebug("Для регистра {regName} обновлены данные {value}", register.Name, register.PublishValue);
-                                        await mqttBus.EnqueueMessage(register.Name, register.PublishValue.ToMqtt(), true, cancellationToken);
-                                    }
+                                    await ReadRegisterFromModbus(register, new bool[] { wbEvent.EventData[0] != 0 }, readTime, cancellationToken);
                                 }
                                 else
                                 {
@@ -461,13 +450,7 @@ namespace ModbusMqttPublisher.Server.Services
                                     if (wbEvent.EventData?.Length != 1)
                                         throw new Exception("Количество данных для регистра DiscreteInput ожидалось - 1 байт");
 
-                                    var needPublish = register.ReadFromModbus(readTime, new bool[] { wbEvent.EventData[0] != 0 });
-
-                                    if (needPublish)
-                                    {
-                                        logger.LogDebug("Для регистра {regName} обновлены данные {value}", register.Name, register.PublishValue);
-                                        await mqttBus.EnqueueMessage(register.Name, register.PublishValue.ToMqtt(), true, cancellationToken);
-                                    }
+                                    await ReadRegisterFromModbus(register, new bool[] { wbEvent.EventData[0] != 0 }, readTime, cancellationToken);
                                 }
                                 else
                                 {
@@ -487,13 +470,7 @@ namespace ModbusMqttPublisher.Server.Services
                                     for(int i = 0; i < wbEvent.EventData.Length / 2; i++)
                                         modbusData[modbusData.Length - 1 - i] = ByteOrderUtils.ToUInt16LE(wbEvent.EventData.AsSpan().Slice(i * 2, 2));
 
-                                    var needPublish = register.ReadFromModbus(readTime, modbusData);
-
-                                    if (needPublish)
-                                    {
-                                        logger.LogDebug("Для регистра {regName} обновлены данные {value}", register.Name, register.PublishValue);
-                                        await mqttBus.EnqueueMessage(register.Name, register.PublishValue.ToMqtt(), true, cancellationToken);
-                                    }
+                                    await ReadRegisterFromModbus(register, modbusData, readTime, cancellationToken);
                                 }
                                 else
                                 {
@@ -513,13 +490,7 @@ namespace ModbusMqttPublisher.Server.Services
                                     for (int i = 0; i < wbEvent.EventData.Length / 2; i++)
                                         modbusData[modbusData.Length - 1 - i] = ByteOrderUtils.ToUInt16LE(wbEvent.EventData.AsSpan().Slice(i * 2, 2));
 
-                                    var needPublish = register.ReadFromModbus(readTime, modbusData);
-
-                                    if (needPublish)
-                                    {
-                                        logger.LogDebug("Для регистра {regName} обновлены данные {value}", register.Name, register.PublishValue);
-                                        await mqttBus.EnqueueMessage(register.Name, register.PublishValue.ToMqtt(), true, cancellationToken);
-                                    }
+                                    await ReadRegisterFromModbus(register, modbusData, readTime, cancellationToken);
                                 }
                                 else
                                 {
@@ -530,6 +501,31 @@ namespace ModbusMqttPublisher.Server.Services
                     }
                 }
             }
+        }
+
+        private async Task ReadRegisterFromModbus(ReadRegister register, ArraySegment<ushort> modbusData, DateTime readTime, CancellationToken cancellationToken)
+        {
+            var needPublish = register.ReadFromModbus(readTime, modbusData);
+            if (needPublish)
+                await PublishRegister(register, cancellationToken);
+        }
+
+        private async Task ReadRegisterFromModbus(ReadRegister register, ArraySegment<bool> modbusData, DateTime readTime, CancellationToken cancellationToken)
+        {
+            var needPublish = register.ReadFromModbus(readTime, modbusData);
+            if (needPublish)
+                await PublishRegister(register, cancellationToken);
+        }
+
+        private async Task PublishRegister(ReadRegister register, CancellationToken cancellationToken)
+        {
+            await PublishValue(register.Name, register.PublishValue, cancellationToken);
+        }
+
+        private async Task PublishValue(string name, IPublishValueSorage value, CancellationToken cancellationToken)
+        {
+            logger.LogDebug("Для регистра {regName} обновлены данные {value}", name, value);
+            await mqttBus.EnqueueMessage(name, value.ToMqtt(), true, cancellationToken);
         }
     }
 }
