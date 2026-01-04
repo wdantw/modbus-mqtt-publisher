@@ -6,6 +6,7 @@ using ModbusMqttPublisher.Server.Domain;
 using System.Diagnostics.Metrics;
 using ModbusMqttPublisher.Server.Services.Modbus.Enums;
 using ModbusMqttPublisher.Server.Services.Modbus.Utils;
+using Microsoft.Extensions.Logging;
 
 namespace ModbusMqttPublisher.Server.Services
 {
@@ -150,11 +151,10 @@ namespace ModbusMqttPublisher.Server.Services
                 {
 					var needPublish = reg.ReadFromModbus(readTime, readResult.AsSpan().Slice(reg.StartNumber - readTask.StartNumber, 1));
 
-					logger.LogDebug("Для регистра {regName} получены данные {value}", reg.Name, reg.PublishValue);
-
 					if (needPublish)
 					{
-						await mqttBus.EnqueueMessage(reg.Name, reg.PublishValue.ToMqtt(), true, cancellationToken);
+                        logger.LogDebug("Для регистра {regName} обновлены данные {value}", reg.Name, reg.PublishValue);
+                        await mqttBus.EnqueueMessage(reg.Name, reg.PublishValue.ToMqtt(), true, cancellationToken);
 					}
                 }
             }
@@ -183,11 +183,10 @@ namespace ModbusMqttPublisher.Server.Services
 				{
 					var needPubliish = reg.ReadFromModbus(readTime, readResult.AsSpan().Slice(reg.StartNumber - readTask.StartNumber, reg.SizeInRegisters));
 
-                    logger.LogDebug("Для регистра {regName} получены данные {value}", reg.Name, reg.PublishValue);
-
                     if (needPubliish)
 					{
-						await mqttBus.EnqueueMessage(reg.Name, reg.PublishValue.ToMqtt(), true, cancellationToken);
+                        logger.LogDebug("Для регистра {regName} обновлены данные {value}", reg.Name, reg.PublishValue);
+                        await mqttBus.EnqueueMessage(reg.Name, reg.PublishValue.ToMqtt(), true, cancellationToken);
 					}
                 }
             }
@@ -386,6 +385,7 @@ namespace ModbusMqttPublisher.Server.Services
                         {
                             // в прошлый цикл запроса уже устновили флаг lastDeviceReadFinished но сигнала о том, что событий больше нет не получили. прерываем цикл запроса принудительно
                             // без потверждения событий
+                            logger.LogDebug("Сработало предотвращение спама последнего устройства");
                             break;
                         }
 
@@ -407,6 +407,12 @@ namespace ModbusMqttPublisher.Server.Services
                 // обработка событий readResult.Events для устройства device
                 foreach (var wbEvent in readResult.Events)
                 {
+                    if (logger.IsEnabled(LogLevel.Debug))
+                    {
+                        var dataStr = wbEvent.EventData != null ? BitConverter.ToString(wbEvent.EventData) : "null";
+                        logger.LogDebug("Получено событие SlaveAddress:{SlaveAddress} Type:{type} id:{id} data:{data} EventCount:{EventCount}", readResult.SlaveAddress, wbEvent.EventType, wbEvent.EventId, dataStr, readResult.EventCount);
+                    }
+
                     switch (wbEvent.EventType)
                     {
                         case WBEventType.System:
@@ -435,10 +441,9 @@ namespace ModbusMqttPublisher.Server.Services
 
                                     var needPublish = register.ReadFromModbus(readTime, new bool[] { wbEvent.EventData[0] != 0 });
 
-                                    logger.LogDebug("Для регистра {regName} получены данные {value}", register.Name, register.PublishValue);
-
                                     if (needPublish)
                                     {
+                                        logger.LogDebug("Для регистра {regName} обновлены данные {value}", register.Name, register.PublishValue);
                                         await mqttBus.EnqueueMessage(register.Name, register.PublishValue.ToMqtt(), true, cancellationToken);
                                     }
                                 }
@@ -458,10 +463,9 @@ namespace ModbusMqttPublisher.Server.Services
 
                                     var needPublish = register.ReadFromModbus(readTime, new bool[] { wbEvent.EventData[0] != 0 });
 
-                                    logger.LogDebug("Для регистра {regName} получены данные {value}", register.Name, register.PublishValue);
-
                                     if (needPublish)
                                     {
+                                        logger.LogDebug("Для регистра {regName} обновлены данные {value}", register.Name, register.PublishValue);
                                         await mqttBus.EnqueueMessage(register.Name, register.PublishValue.ToMqtt(), true, cancellationToken);
                                     }
                                 }
@@ -481,14 +485,13 @@ namespace ModbusMqttPublisher.Server.Services
 
                                     var modbusData = new ushort[wbEvent.EventData.Length / 2];
                                     for(int i = 0; i < wbEvent.EventData.Length / 2; i++)
-                                        modbusData[i] = ByteOrderUtils.ToUInt16BE(wbEvent.EventData.AsSpan().Slice(i * 2, 2));
+                                        modbusData[modbusData.Length - 1 - i] = ByteOrderUtils.ToUInt16LE(wbEvent.EventData.AsSpan().Slice(i * 2, 2));
 
                                     var needPublish = register.ReadFromModbus(readTime, modbusData);
 
-                                    logger.LogDebug("Для регистра {regName} получены данные {value}", register.Name, register.PublishValue);
-
                                     if (needPublish)
                                     {
+                                        logger.LogDebug("Для регистра {regName} обновлены данные {value}", register.Name, register.PublishValue);
                                         await mqttBus.EnqueueMessage(register.Name, register.PublishValue.ToMqtt(), true, cancellationToken);
                                     }
                                 }
@@ -508,14 +511,13 @@ namespace ModbusMqttPublisher.Server.Services
 
                                     var modbusData = new ushort[wbEvent.EventData.Length / 2];
                                     for (int i = 0; i < wbEvent.EventData.Length / 2; i++)
-                                        modbusData[i] = ByteOrderUtils.ToUInt16BE(wbEvent.EventData.AsSpan().Slice(i * 2, 2));
+                                        modbusData[modbusData.Length - 1 - i] = ByteOrderUtils.ToUInt16LE(wbEvent.EventData.AsSpan().Slice(i * 2, 2));
 
                                     var needPublish = register.ReadFromModbus(readTime, modbusData);
 
-                                    logger.LogDebug("Для регистра {regName} получены данные {value}", register.Name, register.PublishValue);
-
                                     if (needPublish)
                                     {
+                                        logger.LogDebug("Для регистра {regName} обновлены данные {value}", register.Name, register.PublishValue);
                                         await mqttBus.EnqueueMessage(register.Name, register.PublishValue.ToMqtt(), true, cancellationToken);
                                     }
                                 }

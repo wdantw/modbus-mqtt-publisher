@@ -57,6 +57,8 @@ namespace ModbusMqttPublisher.Server.Services
         {
             settings = settingsService.ResolveConfigs();
 
+            logger.LogInformation("Порядок байт в системе {byteOrder}", BitConverter.IsLittleEndian ? "little-endian" : "big-endian");
+
             var tasks = settings
                 .Select(s => RunSingle(s, stoppingToken))
                 .ToArray();
