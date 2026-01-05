@@ -65,9 +65,10 @@
   ],
 
   "ModbusModifiers": [
-    { "Tags": "sensors", "ReadPeriod": "00:00:00.05" },
-    { "Tags": "relay", "ReadPeriod": "00:00:30.000" },
-    { "Tags": "button", "ReadPeriod": "00:00:00.05" }
+    { "Tags": "sensors", "ReadPeriod": "00:00:01.050" },
+    { "Tags": "relay", "ReadPeriod": "00:00:01.050" },
+    { "Tags": "button", "ReadPeriod": "00:00:01.05" },
+    { "Tags": "status", "ReadPeriod": "00:01:00.00" }
   ],
 
   "OneWire": [
