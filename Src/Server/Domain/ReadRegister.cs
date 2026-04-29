@@ -4,6 +4,7 @@ using ModbusMqttPublisher.Server.Contracts.Configs;
 using ModbusMqttPublisher.Server.Contracts.Configs.Enums;
 using ModbusMqttPublisher.Server.Services.Modbus.Enums;
 using ModbusMqttPublisher.Server.Services.Values;
+using MQTTnet.DependencyInjection;
 
 namespace ModbusMqttPublisher.Server.Domain
 {

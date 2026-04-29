@@ -1,4 +1,6 @@
-﻿namespace ModbusMqttPublisher.Server.Common
+﻿using System.Buffers;
+
+namespace ModbusMqttPublisher.Server.Common
 {
 	public static class ArrayExtension
 	{
@@ -6,5 +8,9 @@
 		{
 			return new ArraySegment<T>(array, start, length);
 		}
-	}
+
+		public static ReadOnlySpan<T> ToSpan<T>(this ReadOnlySequence<T> sequence)
+			=> sequence.IsSingleSegment ? sequence.FirstSpan : sequence.ToArray();
+
+    }
 }

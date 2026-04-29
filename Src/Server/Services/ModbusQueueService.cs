@@ -1,22 +1,24 @@
 ﻿using ModbusMqttPublisher.Server.Common;
 using ModbusMqttPublisher.Server.Contracts;
 using ModbusMqttPublisher.Server.Services.Modbus;
-using ModbusMqttPublisher.Server.Services.Mqtt;
 using ModbusMqttPublisher.Server.Domain;
 using System.Diagnostics.Metrics;
 using ModbusMqttPublisher.Server.Services.Modbus.Enums;
 using ModbusMqttPublisher.Server.Services.Modbus.Utils;
 using ModbusMqttPublisher.Server.Services.Values;
+using MQTTnet.DependencyInjection;
+using MQTTnet;
+using System.Buffers;
 
 namespace ModbusMqttPublisher.Server.Services
 {
     public class ModbusQueueService : IQueueService
     {
-        private readonly ReadPort settings;
-        private readonly ILogger<ModbusQueueService> logger;
-        private readonly IModbusClientFactory modbusFactory;
-        private readonly IMqttBus mqttBus;
-        private readonly IWriteQueueService writeQueueService;
+        private readonly ReadPort _settings;
+        private readonly ILogger<ModbusQueueService> _logger;
+        private readonly IModbusClientFactory _modbusFactory;
+        private readonly IWriteQueueService _writeQueueService;
+        private readonly IMqttPublisher _mqttPublisher;
 
         private readonly Counter<int> _readCallCounter;
         private readonly DiagnosticTimeCounter _readCallDurationCounter;
@@ -31,15 +33,15 @@ namespace ModbusMqttPublisher.Server.Services
             ReadPort settings,
             ILogger<ModbusQueueService> logger,
             IModbusClientFactory modbusFactory,
-            IMqttBus mqttBus,
             IWriteQueueService writeQueueService,
-            IMeterFactory meterFactory)
+            IMeterFactory meterFactory,
+            IMqttPublisher mqttPublisher)
         {
-            this.settings = settings;
-            this.logger = logger;
-            this.modbusFactory = modbusFactory;
-            this.mqttBus = mqttBus;
-            this.writeQueueService = writeQueueService;
+            _settings = settings;
+            _logger = logger;
+            _modbusFactory = modbusFactory;
+            _writeQueueService = writeQueueService;
+            _mqttPublisher = mqttPublisher;
 
             var meter = meterFactory.Create(GetType().FullName!, tags: new Dictionary<string, object?> { { "Serial", settings.SerialName } });
             _readCallCounter = meter.CreateCounter<int>("publisher.queue.read.calls", "calls", "Количество вызовов метода чтения регистров");
@@ -54,23 +56,23 @@ namespace ModbusMqttPublisher.Server.Services
         {
             await Task.Yield();
 
-			using var modbusClient = modbusFactory.Create(settings);
+			using var modbusClient = _modbusFactory.Create(_settings);
 
 			while (!cancellationToken.IsCancellationRequested)
             {
-				logger.LogTrace($"Новый цикл работы с портом");
+				_logger.LogTrace($"Новый цикл работы с портом");
 
                 // если есть задачи на запись
-				var writeQuery = writeQueueService.GetQuery(settings.SerialName);
+				var writeQuery = _writeQueueService.GetQuery(_settings.SerialName);
                 if (writeQuery != null)
                 {
                     await PerfomWriteRequest(modbusClient, writeQuery, cancellationToken);
-                    writeQueueService.AcceptDequeued(settings.SerialName);
+                    _writeQueueService.AcceptDequeued(_settings.SerialName);
                     continue;
                 }
 
                 // если необходимо сконфигурировать wbEvents
-                if (settings.AllowWbEvents)
+                if (_settings.AllowWbEvents)
                 {
                     try
                     {
@@ -79,15 +81,15 @@ namespace ModbusMqttPublisher.Server.Services
                     }
                     catch (Exception ex)
                     {
-                        logger.LogError(ex, "Ошибка настройки wb событий");
+                        _logger.LogError(ex, "Ошибка настройки wb событий");
                         continue;
                     }
                 }
 
                 var currTime = DateTime.Now;
-                var nextReadTime = settings.NextReadTime;
+                var nextReadTime = _settings.NextReadTime;
 
-                if (settings.AllowWbEvents && _nextReadWbEvents < nextReadTime)
+                if (_settings.AllowWbEvents && _nextReadWbEvents < nextReadTime)
                 {
                     try
                     {
@@ -96,14 +98,14 @@ namespace ModbusMqttPublisher.Server.Services
                     }
                     catch (Exception ex)
                     {
-                        logger.LogError(ex, "Ошибка получения wb событий");
+                        _logger.LogError(ex, "Ошибка получения wb событий");
                     }
                     continue;
                 }
 
                 if (nextReadTime <= currTime)
                 {
-                    var readTask = settings.GetNextReadTask(currTime);
+                    var readTask = _settings.GetNextReadTask(currTime);
 
                     if (readTask != null)
                         await PerfomReadRequest(modbusClient, readTask, cancellationToken);
@@ -113,10 +115,10 @@ namespace ModbusMqttPublisher.Server.Services
 
                 var delay = nextReadTime - currTime;
 
-                if (!settings.AllowWbEvents && delay > TimeSpan.Zero)
+                if (!_settings.AllowWbEvents && delay > TimeSpan.Zero)
                 {
                     await await AsyncExtensions.WhenAnyCancellable(
-                        ct => writeQueueService.WaitForItems(settings.SerialName, ct),
+                        ct => _writeQueueService.WaitForItems(_settings.SerialName, ct),
                         ct => Task.Delay(delay, ct),
                         cancellationToken);
                 }
@@ -146,7 +148,7 @@ namespace ModbusMqttPublisher.Server.Services
 				}
 				catch (Exception ex)
                 {
-                    logger.LogError(ex, "Ошибка чтения из Modbus");
+                    _logger.LogError(ex, "Ошибка чтения из Modbus");
 					readTask.AccessFailed(DateTime.Now);
                     return false;
 				}
@@ -172,7 +174,7 @@ namespace ModbusMqttPublisher.Server.Services
 				}
 				catch (Exception ex)
 				{
-					logger.LogError(ex, "Ошибка чтения из Modbus");
+					_logger.LogError(ex, "Ошибка чтения из Modbus");
                     readTask.AccessFailed(DateTime.Now);
                     return false;
 				}
@@ -191,7 +193,7 @@ namespace ModbusMqttPublisher.Server.Services
             _writeCallCounter.Add(1);
             using var _ = _writeCallDurationCounter.GetStartHolder();
 
-            var writeTask = settings.GetWriteTask(writeQuery.TopicName);
+            var writeTask = _settings.GetWriteTask(writeQuery.TopicName);
 
 			if (writeTask == null)
 				return false;
@@ -209,8 +211,8 @@ namespace ModbusMqttPublisher.Server.Services
 
 				try
 				{
-					register.IncomeValueConverter.ToModbus(writeQuery.Value, data);
-                    logger.LogDebug("Запись в modbus {registerName}", register.Name);
+					register.IncomeValueConverter.ToModbus(writeQuery.Value.ToSpan(), data);
+                    _logger.LogDebug("Запись в modbus {registerName}", register.Name);
 
 					writeStarted = true;
 
@@ -227,7 +229,7 @@ namespace ModbusMqttPublisher.Server.Services
                 }
 				catch (Exception ex)
 				{
-					logger.LogError(ex, $"Ошибка записи в устройство");
+					_logger.LogError(ex, $"Ошибка записи в устройство");
 
 					if (writeStarted)
 						register.AccessFailed(DateTime.Now);
@@ -243,8 +245,8 @@ namespace ModbusMqttPublisher.Server.Services
 				bool writeStarted = false;
 				try
 				{
-					register.IncomeValueConverter.ToModbus(writeQuery.Value, data);
-                    logger.LogDebug("Запись в modbus {registerName}", register.Name);
+					register.IncomeValueConverter.ToModbus(writeQuery.Value.ToSpan(), data);
+                    _logger.LogDebug("Запись в modbus {registerName}", register.Name);
 
 					writeStarted = true;
 					await modbus.WriteShortRegistersAsync(
@@ -260,7 +262,7 @@ namespace ModbusMqttPublisher.Server.Services
                 }
 				catch (Exception ex)
 				{
-					logger.LogError(ex, $"Ошибка записи в устройство");
+					_logger.LogError(ex, $"Ошибка записи в устройство");
                     
 					if (writeStarted)
                         register.AccessFailed(DateTime.Now);
@@ -275,14 +277,14 @@ namespace ModbusMqttPublisher.Server.Services
         private async Task<bool> PerfomReadWbEventsConfiguration(IModbusClient modbus, CancellationToken cancellationToken)
         {
             var result = false;
-            foreach (var dev in settings.Devices)
+            foreach (var dev in _settings.Devices)
             {
                 if (!dev.NeedWbEventsConfigure)
                     continue;
 
                 var configs = dev.GetWbEventConfigurations().ToArray();
                 var readResult = await modbus.WbConfigureEvents(dev.SlaveAddress, configs, cancellationToken);
-                logger.LogInformation("Настройка wb событий для устройства {devAddress}", dev.SlaveAddress);
+                _logger.LogInformation("Настройка wb событий для устройства {devAddress}", dev.SlaveAddress);
                 dev.ApplyWbEventsConfiguration(readResult);
                 result = true;
             }
@@ -296,7 +298,7 @@ namespace ModbusMqttPublisher.Server.Services
 
             var readTime = DateTime.Now;
 
-            byte minSlaveAddress = settings.MinSlaveAddress;
+            byte minSlaveAddress = _settings.MinSlaveAddress;
             byte acceptSlaveAddress = 0;
             byte acceptFlag = 0;
             // устанавливаем лимит событий, чтоб устройства не спамили
@@ -313,10 +315,10 @@ namespace ModbusMqttPublisher.Server.Services
 
                 if (readResult.Events == null || readResult.Events.Length == 0)
                 {
-                    logger.LogDebug("Запрос событий wb не вернул ни одного события");
+                    _logger.LogDebug("Запрос событий wb не вернул ни одного события");
 
                     // возникает если поставить System-Rebooted событию приоритет Hi до его акцепта. пропустим эти события. акцептировать из бессмысленно - это не исправляет глюка
-                    if (readResult.SlaveAddress >= settings.MaxSlaveAddress)
+                    if (readResult.SlaveAddress >= _settings.MaxSlaveAddress)
                     {
                         break;
                     }
@@ -330,14 +332,14 @@ namespace ModbusMqttPublisher.Server.Services
                     }
                 }
 
-                var device = settings.GetDeice(readResult.SlaveAddress);
+                var device = _settings.GetDeice(readResult.SlaveAddress);
 
                 if (device == null)
                 {
-                    logger.LogWarning("Пришли Wb события от устройства, которе не указано в настройках {slaveAddress}", readResult.SlaveAddress);
+                    _logger.LogWarning("Пришли Wb события от устройства, которе не указано в настройках {slaveAddress}", readResult.SlaveAddress);
 
                     // дальше зарегистрированных устройств точно не будет
-                    if (readResult.SlaveAddress >= settings.MaxSlaveAddress)
+                    if (readResult.SlaveAddress >= _settings.MaxSlaveAddress)
                         break;
 
                     minSlaveAddress = (byte)(readResult.SlaveAddress + 1);
@@ -371,7 +373,7 @@ namespace ModbusMqttPublisher.Server.Services
                 {
                     // принудительно переключаемся на следующее устройство
 
-                    if (readResult.SlaveAddress >= settings.MaxSlaveAddress)
+                    if (readResult.SlaveAddress >= _settings.MaxSlaveAddress)
                     {
                         // дальше зарегистрированных устройств точно не будет
                         // но нужно акцептировать текущие события. если последнее устройство спамит, то получим бесконечный цикл. используем lastDeviceReadFinished флаг для предотвращения
@@ -380,7 +382,7 @@ namespace ModbusMqttPublisher.Server.Services
                         {
                             // в прошлый цикл запроса уже устновили флаг lastDeviceReadFinished но сигнала о том, что событий больше нет не получили. прерываем цикл запроса принудительно
                             // без потверждения событий
-                            logger.LogDebug("Сработало предотвращение спама последнего устройства");
+                            _logger.LogDebug("Сработало предотвращение спама последнего устройства");
                             break;
                         }
 
@@ -402,10 +404,10 @@ namespace ModbusMqttPublisher.Server.Services
                 // обработка событий readResult.Events для устройства device
                 foreach (var wbEvent in readResult.Events)
                 {
-                    if (logger.IsEnabled(LogLevel.Debug))
+                    if (_logger.IsEnabled(LogLevel.Debug))
                     {
                         var dataStr = wbEvent.EventData != null ? BitConverter.ToString(wbEvent.EventData) : "null";
-                        logger.LogDebug("Получено событие SlaveAddress:{SlaveAddress} Type:{type} id:{id} data:{data} EventCount:{EventCount}", readResult.SlaveAddress, wbEvent.EventType, wbEvent.EventId, dataStr, readResult.EventCount);
+                        _logger.LogDebug("Получено событие SlaveAddress:{SlaveAddress} Type:{type} id:{id} data:{data} EventCount:{EventCount}", readResult.SlaveAddress, wbEvent.EventType, wbEvent.EventId, dataStr, readResult.EventCount);
                     }
 
                     switch (wbEvent.EventType)
@@ -415,14 +417,14 @@ namespace ModbusMqttPublisher.Server.Services
                                 if (wbEvent.EventId == (ushort)WbSystemEventId.Rebooted)
                                 {
                                     if (wbEvent.EventData?.Length > 0)
-                                        logger.LogWarning("От устройства {slaveAddress} поступило System событие Rebooted к которому привязаны данные", readResult.SlaveAddress);
+                                        _logger.LogWarning("От устройства {slaveAddress} поступило System событие Rebooted к которому привязаны данные", readResult.SlaveAddress);
 
-                                    logger.LogInformation("Уствройство перезагружено {devAddress}", device.SlaveAddress);
+                                    _logger.LogInformation("Уствройство перезагружено {devAddress}", device.SlaveAddress);
                                     device.DeviceRebooted();
                                 }
                                 else
                                 {
-                                    logger.LogWarning("От устройства {slaveAddress} поступило неизвестное System событие с идентификатором {EventId}", readResult.SlaveAddress, wbEvent.EventId);
+                                    _logger.LogWarning("От устройства {slaveAddress} поступило неизвестное System событие с идентификатором {EventId}", readResult.SlaveAddress, wbEvent.EventId);
                                 }
                             }
                             break;
@@ -438,7 +440,7 @@ namespace ModbusMqttPublisher.Server.Services
                                 }
                                 else
                                 {
-                                    logger.LogWarning("От устройства {slaveAddress} поступило событие Coil для не зарегистрированного регистра {EventId}", readResult.SlaveAddress, wbEvent.EventId);
+                                    _logger.LogWarning("От устройства {slaveAddress} поступило событие Coil для не зарегистрированного регистра {EventId}", readResult.SlaveAddress, wbEvent.EventId);
                                 }
                             }
                             break;
@@ -454,7 +456,7 @@ namespace ModbusMqttPublisher.Server.Services
                                 }
                                 else
                                 {
-                                    logger.LogWarning("От устройства {slaveAddress} поступило событие DiscreteInput для не зарегистрированного регистра {EventId}", readResult.SlaveAddress, wbEvent.EventId);
+                                    _logger.LogWarning("От устройства {slaveAddress} поступило событие DiscreteInput для не зарегистрированного регистра {EventId}", readResult.SlaveAddress, wbEvent.EventId);
                                 }
                             }
                             break;
@@ -474,7 +476,7 @@ namespace ModbusMqttPublisher.Server.Services
                                 }
                                 else
                                 {
-                                    logger.LogWarning("От устройства {slaveAddress} поступило событие Holding для не зарегистрированного регистра {EventId}", readResult.SlaveAddress, wbEvent.EventId);
+                                    _logger.LogWarning("От устройства {slaveAddress} поступило событие Holding для не зарегистрированного регистра {EventId}", readResult.SlaveAddress, wbEvent.EventId);
                                 }
                             }
                             break;
@@ -494,7 +496,7 @@ namespace ModbusMqttPublisher.Server.Services
                                 }
                                 else
                                 {
-                                    logger.LogWarning("От устройства {slaveAddress} поступило событие Input для не зарегистрированного регистра {EventId}", readResult.SlaveAddress, wbEvent.EventId);
+                                    _logger.LogWarning("От устройства {slaveAddress} поступило событие Input для не зарегистрированного регистра {EventId}", readResult.SlaveAddress, wbEvent.EventId);
                                 }
                             }
                             break;
@@ -524,8 +526,15 @@ namespace ModbusMqttPublisher.Server.Services
 
         private async Task PublishValue(string name, IPublishValueSorage value, CancellationToken cancellationToken)
         {
-            logger.LogDebug("Для регистра {regName} обновлены данные {value}", name, value);
-            await mqttBus.EnqueueMessage(name, value.ToMqtt(), true, cancellationToken);
+            _logger.LogDebug("Для регистра {regName} обновлены данные {value}", name, value);
+
+            var applicationMessage = new MqttApplicationMessageBuilder()
+                   .WithTopic(name)
+                   .WithPayload(value.ToMqtt())
+                   .WithRetainFlag(true)
+                   .Build();
+
+            await _mqttPublisher.PublishAsync(applicationMessage, cancellationToken);
         }
     }
 }
