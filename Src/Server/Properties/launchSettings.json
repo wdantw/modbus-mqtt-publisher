@@ -1,0 +1,35 @@
+{
+    "iisSettings": {
+      "windowsAuthentication": false,
+      "anonymousAuthentication": true,
+      "iisExpress": {
+        "applicationUrl": "http://localhost:27117",
+        "sslPort": 0
+      }
+    },
+    "profiles": {
+      "Local": {
+        "commandName": "Project",
+        "dotnetRunMessages": true,
+        "launchBrowser": false,
+        "inspectUri": "{wsProtocol}://{url.hostname}:{url.port}/_framework/debug/ws-proxy?browser={browserInspectUri}",
+        "applicationUrl": "http://0.0.0.0:5154",
+        "environmentVariables": {
+          "ASPNETCORE_ENVIRONMENT": "Development",
+          "MODBUS_MQTT_PUBLISHER_USERCONFIG": "modbus-mqtt-publisher-dev.json"
+        }
+      },
+      "LocalFakeModbus": {
+        "commandName": "Project",
+        "dotnetRunMessages": true,
+        "launchBrowser": false,
+        "inspectUri": "{wsProtocol}://{url.hostname}:{url.port}/_framework/debug/ws-proxy?browser={browserInspectUri}",
+        "applicationUrl": "http://0.0.0.0:5154",
+        "environmentVariables": {
+          "ASPNETCORE_ENVIRONMENT": "Development",
+          "MODBUS_MQTT_PUBLISHER_FAKE_MODBUS": "true",
+          "MODBUS_MQTT_PUBLISHER_USERCONFIG": "modbus-mqtt-publisher-dev-fakemodbus.json"
+        }
+      }
+    }
+  }

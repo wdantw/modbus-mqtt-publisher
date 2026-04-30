@@ -1,0 +1,45 @@
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "ModbusMqttPublisher.Server.Services.Modbus.ModbusClient1": "Trace",
+      "ModbusMqttPublisher.Server.Services.ModbusQueueService1":  "Debug"
+    }
+  },
+
+  "MqttOptions" :  {
+    "TcpAddress":  "127.0.0.1"
+  },
+
+  "ModbusPorts": [
+    {
+      "SerialName": "COM3",
+      "BaudRate": 115200,
+      "DataBits": 8,
+      "Parity": "None",
+      "StopBits": "Two",
+      "AllowWbEvents": true,
+      "Devices": [
+        {
+          "SlaveAddress": 116,
+          "Name": "Sensors/Rel1/",
+          "ParentTypeName":  "WB-MR6CU v.2",
+          "Modifiers":[
+            { "Names": "UpTime", "ReadPeriod": "00:00:00.05", "ForcePublish": "true" }
+          ]
+        }
+      ],
+      "ErrorSleepTimeout": "00:00:05.000",
+      "_MaxReadRegisters": 1,
+      "_MaxReadBit": 1,
+      "_MaxRegHole":  0,
+      "_MaxBitHole":  0
+    }
+  ],
+
+  "ModbusModifiers": [
+    { "Tags": "sensors", "ReadPeriod": "00:00:00.05" },
+    { "Tags": "relay", "ReadPeriod": "00:00:00.005" },
+    { "Tags": "button", "ReadPeriod": "00:00:00.05" }
+  ]
+}

@@ -1,0 +1,36 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.6.33829.357
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ModbusMqttPublisher.Server", "Server\ModbusMqttPublisher.Server.csproj", "{3DEC33E7-3841-444F-8836-5D9A42EC6B6D}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ModbusMqttPublisher.Tests", "ModbusMqttPublisher.Tests\ModbusMqttPublisher.Tests.csproj", "{34C88B17-4369-444D-B753-E25061204CEA}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{42FC726F-0BA0-4A12-B9D4-8208170B903B}"
+	ProjectSection(SolutionItems) = preProject
+		..\Описание.txt = ..\Описание.txt
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{3DEC33E7-3841-444F-8836-5D9A42EC6B6D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3DEC33E7-3841-444F-8836-5D9A42EC6B6D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3DEC33E7-3841-444F-8836-5D9A42EC6B6D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3DEC33E7-3841-444F-8836-5D9A42EC6B6D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{34C88B17-4369-444D-B753-E25061204CEA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{34C88B17-4369-444D-B753-E25061204CEA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{34C88B17-4369-444D-B753-E25061204CEA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{34C88B17-4369-444D-B753-E25061204CEA}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {32F48578-3949-47AC-9D7C-83F6E035CF69}
+	EndGlobalSection
+EndGlobal

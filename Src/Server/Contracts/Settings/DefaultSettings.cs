@@ -1,0 +1,37 @@
+﻿using System.IO.Ports;
+
+namespace ModbusMqttPublisher.Server.Contracts.Settings
+{
+    public static class DefaultSettings
+    {
+        public static int BaudRate => 9600;
+        public static int DataBits => 8;
+        public static Parity Parity => Parity.None;
+        public static StopBits StopBits => StopBits.One;
+        public static TimeSpan MinSleepTimeout(int baudRate) => TimeSpan.FromMilliseconds(Math.Ceiling(38500000.0 / baudRate) / 1000.0);
+        public static bool AllowWbEvents => false;
+
+        // максимальконе количество чтения "пустых" одно байтовых регистров в запросе
+        // дефолт 7 (13 байт - оверхеда на передачу modbus + 1 на оверхед протокола RS-485) + задержку 3.5 символа перед запросом или ответом
+        public static int MaxRegHole => 10;
+
+        // максимальконе количество чтения "пустых" однобитовых регистров в запросе + задержку 3.5 символа перед запросом или ответом
+        public static int MaxBitHole => 160;
+
+        // максимальное количество регистров для чтения в одном запросе (ограничение протокола)
+        public static int MaxReadRegisters => 125;
+
+        // максимальное количество регистров для чтения в одном запросе (ограничение протокола)
+        public static int MaxReadBit => 250 * 8;
+
+        public static string DecimalSeparator = ".";
+
+        public static TimeSpan DefaultPortTimeout = TimeSpan.FromSeconds(1);
+
+		public static int DefaultWriteRetryCount = 3;
+
+		public static int DefaultReadRetryCount = 1;
+
+        public static TimeSpan DefaultErrorSleepTimeout = TimeSpan.FromMinutes(1);
+	}
+}
