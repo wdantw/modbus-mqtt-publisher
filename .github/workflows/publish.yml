@@ -1,4 +1,4 @@
-name: Publish NuGet Package
+name: Publish Deb Package
 
 on:
   push:
@@ -14,20 +14,33 @@ env:
 jobs:
   build-and-publish:
     runs-on: ubuntu-latest
+    
+    permissions:
+      contents: write
 
     steps:
-      - name: 📥 Checkout code
+      - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Полный history для GitVersion (если используется)
+          fetch-depth: 0
 
-      - name: 🔧 Setup .NET
+      - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
+          dotnet-version: |
+            6.x
+            ${{ env.DOTNET_VERSION }}
 
-      - name: 🚚 Restore dependencies
-        run: dotnet restore Src\
+      - name: Authenticate with GitHub Packages
+        run: |
+          dotnet nuget add source "${{ env.NUGET_SOURCE }}" \
+            --username "wdantw" \
+            --password "${{ secrets.READ_GITHUB_PACKAGES_TOKEN }}" \
+            --store-password-in-clear-text \
+            --name github
+      
+      - name: Restore dependencies
+        run: dotnet restore Src/
 
       - name: Build
         run: dotnet build Src/ --configuration Release --no-restore
@@ -38,28 +51,37 @@ jobs:
       - name: Clean solution
         run: dotnet clean Src/
 
-      - name: Publish
-        run: dotnet publish Src/Server/ --configuration Release --self-contained false --runtime linux-arm64 --property:PublishSingleFile=true --property:OptimizationPreference=Speed --property:Version=${{ env.VERSION }} --property:PackageVersion=${{ env.VERSION }} --output .\publish\linux-arm64
+      - name: Publish arm64
+        run: dotnet publish Src/Server/ --configuration Release --self-contained false --runtime linux-arm64 --property:PublishSingleFile=true --property:OptimizationPreference=Speed --property:Version=${{ env.VERSION }} --property:PackageVersion=${{ env.VERSION }} --output ./publish/linux-arm64
         
       - name: Restore tools
         run: dotnet tool restore
         
-      - name: Generate deb Package
-        run: dotnet make-deb Setup\app64.debspec
+      - name: Generate deb Package arm64
+        run: dotnet make-deb Setup/app64.debspec
 
-      - name: 🔑 Import GPG key
+      - name: Publish armhf
+        run: dotnet publish Src/Server/ --configuration Release --self-contained false --runtime linux-arm --property:PublishSingleFile=true --property:OptimizationPreference=Speed --property:Version=${{ env.VERSION }} --property:PackageVersion=${{ env.VERSION }} --output ./publish/linux-arm
+        
+      - name: Generate deb Package armhf
+        run: dotnet make-deb Setup/app.debspec
+
+      - name: Import GPG key
         uses: crazy-max/ghaction-import-gpg@v6
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           passphrase: ${{ secrets.GPG_PASSPHRASE }}
-
-      - name: 📚 Setup APT repository and publish .deb
-        uses: smeinecke/apt-repo-action@v2.1.4
+          
+      - name: Setup APT repository and publish .deb
+        uses: smeinecke/apt-repo-action@v2.1.8
         with:
           # Обязательные параметры
-          github_token: ${{ github.token }}
+          github_token: ${{ secrets.WRITE_GITHUB_PACKAGES_TOKEN }}
+          github_repository: wdantw/modbus-mqtt-publisher-repo
+          page_branch: main
           repo_supported_arch: |
             arm64
+            armhf
           repo_supported_version: |
             trixie
             bookworm
@@ -75,13 +97,5 @@ jobs:
           file_target_version: 'bookworm'
           private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           key_passphrase: ${{ secrets.GPG_PASSPHRASE }}
-
-      - name: 🌐 Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./binary
-          publish_branch: main
-          allow_empty_commit: false
-          keep_files: false
-          force_orphan: true
+          # repo_folder: "."
+          skip_duplicates: true

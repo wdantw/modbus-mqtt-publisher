@@ -1,26 +1,28 @@
 basepath: ..
-outdir: ..\binary
+outdir: ../binary
 
 # main info
 
 package: modbus-mqtt-publisher
-version: 1.4.7
+version: 1.4.12
 architecture: arm64
 maintainer: Dant <kloundant@mail.ru>
 description: mqtt modbus gateway
+section: utils
+priority: optional
 #depends: aspnetcore-runtime-8.0
 
 # scripts 
-#preinst:  Setup\preinst    text
-postinst: Setup\postinst   text
-prerm:    Setup\prerm      text
-#postrm:   Setup\postrm     text
+#preinst:  Setup/preinst    text
+postinst: Setup/postinst   text
+prerm:    Setup/prerm      text
+#postrm:   Setup/postrm     text
 
 # vars
 INSTALLDIR = opt/modbus-mqtt-publisher
-PUBLISHDIR = publish\linux-arm64
+PUBLISHDIR = publish/linux-arm64
 
 # files
-file: Setup\modbus-mqtt-publisher.service  etc/systemd/system/  text
-file: {PUBLISHDIR}\** {INSTALLDIR}/ 777
-conffile: Src\Server\modbus-mqtt-publisher.json etc/modbus-mqtt-publisher.json
+file: Setup/modbus-mqtt-publisher.service  etc/systemd/system/  text
+file: {PUBLISHDIR}/** {INSTALLDIR}/ 777
+conffile: Src/Server/modbus-mqtt-publisher.json etc/modbus-mqtt-publisher.json
