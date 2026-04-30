@@ -1,0 +1,87 @@
+name: Publish NuGet Package
+
+on:
+  push:
+    branches:
+      - main  # Триггер на каждый push в main
+  workflow_dispatch:
+
+env:
+  DOTNET_VERSION: '8.x'
+  NUGET_SOURCE: 'https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json'
+  VERSION: "1.0.${{github.run_number}}"
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Полный history для GitVersion (если используется)
+
+      - name: 🔧 Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: 🚚 Restore dependencies
+        run: dotnet restore Src\
+
+      - name: Build
+        run: dotnet build Src/ --configuration Release --no-restore
+      
+      - name: Tests
+        run: dotnet test Src/ --configuration Release --no-build --verbosity normal
+
+      - name: Clean solution
+        run: dotnet clean Src/
+
+      - name: Publish
+        run: dotnet publish Src/Server/ --configuration Release --self-contained false --runtime linux-arm64 --property:PublishSingleFile=true --property:OptimizationPreference=Speed --property:Version=${{ env.VERSION }} --property:PackageVersion=${{ env.VERSION }} --output .\publish\linux-arm64
+        
+      - name: Restore tools
+        run: dotnet tool restore
+        
+      - name: Generate deb Package
+        run: dotnet make-deb Setup\app64.debspec
+
+      - name: 🔑 Import GPG key
+        uses: crazy-max/ghaction-import-gpg@v6
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+
+      - name: 📚 Setup APT repository and publish .deb
+        uses: smeinecke/apt-repo-action@v2.1.4
+        with:
+          # Обязательные параметры
+          github_token: ${{ github.token }}
+          repo_supported_arch: |
+            arm64
+          repo_supported_version: |
+            trixie
+            bookworm
+            bullseye
+            buster
+            stretch
+            jessie
+            wheezy
+            jammy
+            noble
+            focal
+          file: 'binary/*.deb'
+          file_target_version: 'bookworm'
+          private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          key_passphrase: ${{ secrets.GPG_PASSPHRASE }}
+
+      - name: 🌐 Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./binary
+          publish_branch: main
+          allow_empty_commit: false
+          keep_files: false
+          force_orphan: true
