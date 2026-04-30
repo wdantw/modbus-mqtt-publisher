@@ -1,4 +1,5 @@
 ﻿using ModbusMqttPublisher.Server.Contracts;
+using System.Buffers;
 
 namespace ModbusMqttPublisher.Server.Services
 {
@@ -6,7 +7,7 @@ namespace ModbusMqttPublisher.Server.Services
     {
         void AcceptDequeued(string serialName);
 
-        void AddWriteRequest(string serialName, string topicName, ArraySegment<byte> value);
+        void AddWriteRequest(string serialName, string topicName, ReadOnlySequence<byte> value);
 
         WriteQuery? GetQuery(string serialName);
 

@@ -5,6 +5,8 @@ using ModbusMqttPublisher.Server.Contracts.Configs.Enums;
 using ModbusMqttPublisher.Server.Contracts.Settings;
 using ModbusMqttPublisher.Server.Services.Modbus.Enums;
 using ModbusMqttPublisher.Server.Services.Modbus.Handlers;
+using MQTTnet;
+using MQTTnet.DependencyInjection;
 using System.Collections.Frozen;
 
 namespace ModbusMqttPublisher.Server.Domain
@@ -48,7 +50,7 @@ namespace ModbusMqttPublisher.Server.Domain
             if (_maxRegHole <= 0) throw new ArgumentException("MaxRegHole должен быть больше 0");
 
             SlaveAddress = devSettings.SlaveAddress.AssertNotNull();
-            var defaultDeviceName = MqttPath.TopicPathDelimeter + MqttPath.CombineTopicPath(portName ?? serialName, $"Dev{SlaveAddress}");
+            var defaultDeviceName = MqttTopicFilterComparer.LevelSeparator.ToString() + MqttPath.CombineTopicPath(portName ?? serialName, $"Dev{SlaveAddress}");
 
             Name = string.IsNullOrWhiteSpace(devSettings.Name) ? defaultDeviceName : MqttPath.CombineTopicPath(portName, devSettings.Name);
 

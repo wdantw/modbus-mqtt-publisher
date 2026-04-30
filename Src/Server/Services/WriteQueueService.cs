@@ -1,5 +1,6 @@
 ﻿using ModbusMqttPublisher.Server.Common;
 using ModbusMqttPublisher.Server.Contracts;
+using System.Buffers;
 using System.Collections.Concurrent;
 
 namespace ModbusMqttPublisher.Server.Services
@@ -13,7 +14,7 @@ namespace ModbusMqttPublisher.Server.Services
             return queues.GetOrAdd(serialName, _ => new AwaiteableQueue<WriteQuery>());
         }
 
-        public void AddWriteRequest(string serialName, string topicName, ArraySegment<byte> value)
+        public void AddWriteRequest(string serialName, string topicName, ReadOnlySequence<byte> value)
         {
             var queue = GetQueue(serialName);
             queue.Enqueue(new WriteQuery(topicName, value));
